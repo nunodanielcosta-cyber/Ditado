@@ -94,6 +94,8 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
       </div>
       <div class="row" style="margin-top:6px">
         <label class="row" style="gap:4px"><input type="checkbox" id="oto" style="width:auto"> Máscara circular (otoscopia)</label>
+        <button id="btnPedal" title="Ligar pedal USB ou botões da câmara (botão 1 = fotografia, botão 2 = gravar)">Pedal / botões</button>
+        <span class="muted" id="pedalState"></span>
         <span class="sp" style="flex:1"></span>
         <button id="btnStepB" title="Frame anterior">⏮</button>
         <button id="btnPlay">▶︎/❚❚</button>
@@ -481,6 +483,42 @@ function updateButtons() {
   for (const b of ['#btnDownload', '#btnClip', '#btnPrint', '#btnDelMedia', '#btnImport']) $(b).disabled = !curSes;
 }
 
+// ---------- Pedal / botões da câmara (USB HID) ----------
+// O primeiro botão premido fica associado à fotografia, o segundo à gravação.
+let pedalPrev = null;
+function onPedalReport(e) {
+  const bytes = new Uint8Array(e.data.buffer), key = e.reportId;
+  const prev = pedalPrev?.key === key ? pedalPrev.bytes : new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) for (let b = 0; b < 8; b++) {
+    const now = bytes[i] >> b & 1, was = prev[i] >> b & 1;
+    if (now && !was) pedalPress(`${key}:${i}:${b}`);
+  }
+  pedalPrev = {key, bytes};
+}
+function pedalPress(id) {
+  const map = settings.pedalMap || (settings.pedalMap = []);
+  if (!map.includes(id) && map.length < 2) { map.push(id); saveSettings(); }
+  const n = map.indexOf(id);
+  $('#pedalState').textContent = `botão ${n + 1}`;
+  if (n === 0 && !$('#btnSnap').disabled) snapshot();
+  if (n === 1 && !$('#btnRec').disabled) $('#btnRec').click();
+}
+async function attachPedal(d) {
+  if (!d.opened) await d.open();
+  d.oninputreport = onPedalReport;
+  $('#pedalState').textContent = 'ligado: ' + (d.productName || 'pedal');
+}
+$('#btnPedal').onclick = async () => {
+  if (!navigator.hid) return alert('Este browser não suporta pedais USB. Use a versão de computador (.exe) ou Chrome/Edge.');
+  try {
+    const [d] = await navigator.hid.requestDevice({filters: []});
+    if (!d) return;
+    settings.pedalMap = []; saveSettings();
+    await attachPedal(d);
+    alert('Pedal ligado. Prima primeiro o botão que deve tirar FOTOGRAFIA, depois o que deve GRAVAR.');
+  } catch (err) { alert('Não foi possível ligar o pedal: ' + err.message); }
+};
+
 // Atalhos: Espaço = fotografia, R = gravar (como o pedal/botão da câmara)
 document.addEventListener('keydown', e => {
   if (e.target.closest('input,textarea,select,dialog')) return;
@@ -495,6 +533,7 @@ document.addEventListener('keydown', e => {
   $('#oto').checked = settings.oto; $('#stage').classList.toggle('oto', settings.oto);
   await loadPatients(); updateButtons();
   try { await listDevices(); } catch {}
+  try { const [d] = await navigator.hid?.getDevices() || []; if (d) await attachPedal(d); } catch {}
 })();
 </script>
 </body>
