@@ -3,6 +3,8 @@ on:
   push:
     branches: ['**']
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: windows-latest
@@ -12,8 +14,24 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
-      - run: npx electron-builder --win portable nsis --x64 --publish never
+      - run: npx electron-builder --win portable --x64 --publish never
+      - name: Nome fixo para o link de download
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          cp "dist/EndORL-$VERSION-portatil.exe" dist/EndORL-portatil.exe
       - uses: actions/upload-artifact@v4
         with:
-          name: EndORL-windows
-          path: dist/*.exe
+          name: EndORL-portatil
+          path: dist/EndORL-portatil.exe
+      # Publica o .exe numa "release" (link direto) — só quando executado à mão em Actions → "Run workflow":
+      # https://github.com/<dono>/<repo>/releases/latest/download/EndORL-portatil.exe
+      - uses: softprops/action-gh-release@v2
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: EndORL ${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          files: dist/EndORL-portatil.exe
