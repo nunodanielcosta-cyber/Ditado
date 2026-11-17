@@ -15,5 +15,5 @@ jobs:
       - run: npx electron-builder --win portable nsis --x64 --publish never
       - uses: actions/upload-artifact@v4
         with:
-          name: EndoORL-windows
+          name: EndORL-windows
           path: dist/*.exe

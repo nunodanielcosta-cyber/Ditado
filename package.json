@@ -1,10 +1,10 @@
 {
-  "name": "endoorl",
-  "productName": "EndoORL",
-  "version": "1.2.0",
+  "name": "endorl",
+  "productName": "EndORL",
+  "version": "1.3.0",
   "description": "Documentação clínica em vídeo e fotografia",
   "main": "main.js",
-  "author": "EndoORL",
+  "author": "EndORL",
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
@@ -16,18 +16,18 @@
     "electron-builder": "25.1.8"
   },
   "build": {
-    "appId": "pt.endoorl.app",
-    "productName": "EndoORL",
-    "files": ["index.html", "main.js", "preload.js", "package.json", "logo.png"],
+    "appId": "pt.endorl.app",
+    "productName": "EndORL",
+    "files": ["index.html", "main.js", "preload.js", "package.json", "logo.png", "build/icon.png"],
     "directories": { "output": "dist" },
-    "win": { "signAndEditExecutable": false },
-    "portable": { "artifactName": "EndoORL-${version}-portatil.exe" },
+    "win": { "signAndEditExecutable": false, "icon": "build/icon.png" },
+    "portable": { "artifactName": "EndORL-${version}-portatil.exe" },
     "nsis": {
-      "artifactName": "EndoORL-${version}-instalador.exe",
+      "artifactName": "EndORL-${version}-instalador.exe",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "shortcutName": "EndoORL"
+      "shortcutName": "EndORL"
     }
   }
 }

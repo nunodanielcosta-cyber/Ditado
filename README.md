@@ -1,7 +1,7 @@
 # Ditado
 Ditado medico
 
-## EndoORL (`index.html`)
+## EndORL (`index.html`)
 
 Aplicação web de documentação clínica em vídeo/fotografia, inspirada na funcionalidade do DiVAS Mini
 (doentes → sessões → captura de imagem/vídeo → exportação/relatório). Abrir `index.html` num browser
@@ -13,8 +13,8 @@ Atalhos: Espaço = fotografia, R = gravar/parar, ←/→ = frame anterior/seguin
 ### Versão de computador (Windows .exe)
 
 - `main.js` + `package.json`: empacota a app com Electron. A câmara, o microfone e o pedal USB são autorizados automaticamente.
-- As exportações vão para `Documentos\EndoORL\Exportacoes`.
-- Compilar localmente: `npm install` e depois `npm run dist:win` (gera `dist/EndoORL-<versão>-portatil.exe`).
+- As exportações vão para `Documentos\EndORL\Exportacoes`.
+- Compilar localmente: `npm install` e depois `npm run dist:win` (gera `dist/EndORL-<versão>-portatil.exe`).
 - Cada push no GitHub compila o `.exe` portátil e o instalador (Actions → "Compilar .exe Windows" → Artifacts).
 - Pedal / botões da câmara: botão "Pedal / botões". O 1.º botão premido = fotografia, o 2.º = gravar.
 
@@ -23,7 +23,7 @@ Atalhos: Espaço = fotografia, R = gravar/parar, ←/→ = frame anterior/seguin
 - Botão **📝 Relatório** (na sessão): modelos para **Sinuscopia**, **Rinoscopia posterior**, **Laringoscopia** e **Estroboscopia**.
   Cada secção começa com o texto "normal" e tem uma lista de achados frequentes para inserir com um clique.
 - Seleção das imagens do relatório (fotografias ou frames capturados do vídeo com "🖼 Capturar do vídeo" / tecla C), com legendas, 2–4 por linha.
-- Imprimir ou **Guardar PDF** (na versão .exe vai para `Documentos\EndoORL\Relatorios`).
+- Imprimir ou **Guardar PDF** (na versão .exe vai para `Documentos\EndORL\Relatorios`).
 - O cabeçalho (nome da clínica, contactos, logótipo) define-se em **Definições**.
 - Os textos dos modelos estão no objeto `EXAMS` em `index.html` e podem ser alterados.
 
@@ -32,3 +32,7 @@ Atalhos: Espaço = fotografia, R = gravar/parar, ←/→ = frame anterior/seguin
 O relatório traz no topo "Hospital de Braga — Serviço de Otorrinolaringologia" (editável em Definições).
 Para incluir o logótipo oficial em todas as instalações, coloque o ficheiro `logo.png` na raiz do repositório
 e volte a compilar. Em alternativa, carregue-o em **Definições → Logótipo** (fica guardado nesse computador).
+
+### Logótipo da app
+
+`build/logo.svg` (original) e `build/icon.png` (512×512, ícone do .exe e da janela): vista endoscópica circular da glote.

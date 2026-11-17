@@ -1,4 +1,4 @@
-// EndoORL — aplicação de computador (Electron) que corre o index.html
+// EndORL — aplicação de computador (Electron) que corre o index.html
 const { app, BrowserWindow, Menu, dialog, shell, session, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -6,23 +6,23 @@ const fs = require('fs');
 // Só uma instância aberta de cada vez (a câmara não pode ser partilhada)
 if (!app.requestSingleInstanceLock()) { app.quit(); process.exit(0); }
 
-// Manter os dados (doentes, sessões, imagens) da versão anterior "Ditado Video"
+// Manter os dados (doentes, sessões, imagens) das versões anteriores ("EndoORL", "Ditado Video")
 {
-  const oldDir = path.join(app.getPath('appData'), 'Ditado Video');
-  const newDir = path.join(app.getPath('appData'), 'EndoORL');
+  const dir = n => path.join(app.getPath('appData'), n);
   const hasData = d => fs.existsSync(path.join(d, 'IndexedDB'));
-  app.setPath('userData', hasData(oldDir) && !hasData(newDir) ? oldDir : newDir);
+  const found = ['EndORL', 'EndoORL', 'Ditado Video'].map(dir).find(hasData);
+  app.setPath('userData', found || dir('EndORL'));
 }
 
 let win;
 const exportDir = () => {
-  const d = path.join(app.getPath('documents'), 'EndoORL', 'Exportacoes');
+  const d = path.join(app.getPath('documents'), 'EndORL', 'Exportacoes');
   fs.mkdirSync(d, { recursive: true });
   return d;
 };
 
 const reportDir = () => {
-  const d = path.join(app.getPath('documents'), 'EndoORL', 'Relatorios');
+  const d = path.join(app.getPath('documents'), 'EndORL', 'Relatorios');
   fs.mkdirSync(d, { recursive: true });
   return d;
 };
@@ -46,7 +46,7 @@ ipcMain.handle('save-pdf', async (event, name) => {
 function createWindow() {
   win = new BrowserWindow({
     width: 1366, height: 860, minWidth: 900, minHeight: 600,
-    title: 'EndoORL', backgroundColor: '#12161b', show: false,
+    title: 'EndORL', icon: path.join(__dirname, 'build', 'icon.png'), backgroundColor: '#12161b', show: false,
     webPreferences: { contextIsolation: true, nodeIntegration: false, spellcheck: true, preload: path.join(__dirname, 'preload.js') },
   });
   win.once('ready-to-show', () => { win.maximize(); win.show(); });
@@ -82,7 +82,7 @@ app.whenReady().then(() => {
     callback(response < list.length ? list[response].deviceId : undefined);
   });
 
-  // Exportações vão direto para Documentos\EndoORL\Exportacoes (sem perguntar)
+  // Exportações vão direto para Documentos\EndORL\Exportacoes (sem perguntar)
   ses.on('will-download', (_e, item) => {
     const dir = exportDir();
     let name = item.getFilename(), target = path.join(dir, name), n = 1;
@@ -106,7 +106,7 @@ app.whenReady().then(() => {
     ] },
     { label: 'Ajuda', submenu: [
       { label: 'Sobre', click: () => dialog.showMessageBox(win, {
-        title: 'Sobre', message: `EndoORL ${app.getVersion()}`,
+        title: 'Sobre', message: `EndORL ${app.getVersion()}`,
         detail: 'Documentação clínica em vídeo e fotografia.\nDados guardados em:\n' + app.getPath('userData'),
       }) },
     ] },
