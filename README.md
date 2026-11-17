@@ -83,3 +83,19 @@ brilho, contraste, saturação, nitidez e gama, em WebGL. O vídeo ao vivo, as f
   em 4:3 (768×576 / 640×480), para a imagem não ficar "apertada" na horizontal. Desligável no painel **Imagem**.
 - **Ruído:** filtro temporal (compara cada imagem com a anterior) aplicado só onde não há movimento, para não deixar rasto.
   Num teste com ruído moderado, o ruído desceu para metade (desvio-padrão 8,1 → 4,1).
+
+### Análise de voz (v1.8) — `voice.js`
+
+Painel **Voz**: F0 em tempo real (algoritmo YIN), intensidade (dB relativos; ajustável em "Calibração"), gráfico dos
+últimos 8 s, medição de F0/intensidade em 5 s (média, DP, mínimo, máximo) e tempo máximo de fonação.
+"Guardar na sessão" e, no relatório, "Inserir medições da sessão".
+
+### Estroboscopia retrospetiva (v1.8, experimental) — `strobe.js`
+
+1. Painel Voz → **Gravar /i/ para estroboscopia** (3,5 s de vídeo sem filtros + microfone).
+2. Desenhar a zona da glote e **Analisar**: separa os 2 campos de cada imagem (50 amostras/s), mede o F0 no áudio,
+   procura a frequência aparente (F0 mod 50 Hz) que ordena os campos de forma mais contínua, agrupa-os por fase e
+   reconstrói um ciclo (animação, curva da área glótica, quimograma, quociente de abertura aproximado).
+3. Qualidade da reconstrução = coerência da ordenação × variação da abertura entre fases (imagens desfocadas → "fraca").
+Testado com vídeo sintético entrelaçado (F0 187 Hz): correlação 0,99 com o ciclo real; com imagens desfocadas
+(exposição de 20 ms) ou F0 múltiplo de 50 Hz a ferramenta indica qualidade fraca. Uso experimental, não diagnóstico.
