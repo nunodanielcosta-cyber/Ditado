@@ -1,10 +1,10 @@
 {
-  "name": "ditado-video",
-  "productName": "Ditado Video",
-  "version": "1.1.0",
+  "name": "endoorl",
+  "productName": "EndoORL",
+  "version": "1.2.0",
   "description": "Documentação clínica em vídeo e fotografia",
   "main": "main.js",
-  "author": "Ditado",
+  "author": "EndoORL",
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
@@ -16,18 +16,18 @@
     "electron-builder": "25.1.8"
   },
   "build": {
-    "appId": "pt.ditado.video",
-    "productName": "Ditado Video",
-    "files": ["index.html", "main.js", "preload.js", "package.json"],
+    "appId": "pt.endoorl.app",
+    "productName": "EndoORL",
+    "files": ["index.html", "main.js", "preload.js", "package.json", "logo.png"],
     "directories": { "output": "dist" },
     "win": { "signAndEditExecutable": false },
-    "portable": { "artifactName": "DitadoVideo-${version}-portatil.exe" },
+    "portable": { "artifactName": "EndoORL-${version}-portatil.exe" },
     "nsis": {
-      "artifactName": "DitadoVideo-${version}-instalador.exe",
+      "artifactName": "EndoORL-${version}-instalador.exe",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "shortcutName": "Ditado Video"
+      "shortcutName": "EndoORL"
     }
   }
 }
