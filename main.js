@@ -1,5 +1,5 @@
 // Ditado Video — aplicação de computador (Electron) que corre o index.html
-const { app, BrowserWindow, Menu, dialog, shell, session } = require('electron');
+const { app, BrowserWindow, Menu, dialog, shell, session, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -13,11 +13,33 @@ const exportDir = () => {
   return d;
 };
 
+const reportDir = () => {
+  const d = path.join(app.getPath('documents'), 'Ditado Video', 'Relatorios');
+  fs.mkdirSync(d, { recursive: true });
+  return d;
+};
+
+// Guardar o relatório (área de impressão da página) como PDF A4
+ipcMain.handle('save-pdf', async (event, name) => {
+  const safe = String(name || 'Relatorio').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 150);
+  let target = path.join(reportDir(), safe + '.pdf'), n = 1;
+  while (fs.existsSync(target)) target = path.join(reportDir(), `${safe} (${n++}).pdf`);
+  // a cor de fundo da janela pinta as margens do PDF: usar branco enquanto se gera
+  const w = BrowserWindow.fromWebContents(event.sender);
+  w.setBackgroundColor('#ffffff');
+  let pdf;
+  try { pdf = await event.sender.printToPDF({ pageSize: 'A4', printBackground: true, preferCSSPageSize: true }); }
+  finally { w.setBackgroundColor('#12161b'); }
+  fs.writeFileSync(target, pdf);
+  shell.openPath(target);
+  return target;
+});
+
 function createWindow() {
   win = new BrowserWindow({
     width: 1366, height: 860, minWidth: 900, minHeight: 600,
     title: 'Ditado Video', backgroundColor: '#12161b', show: false,
-    webPreferences: { contextIsolation: true, nodeIntegration: false, spellcheck: false },
+    webPreferences: { contextIsolation: true, nodeIntegration: false, spellcheck: true, preload: path.join(__dirname, 'preload.js') },
   });
   win.once('ready-to-show', () => { win.maximize(); win.show(); });
   win.loadFile(path.join(__dirname, 'index.html'));
@@ -28,6 +50,7 @@ app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(
 
 app.whenReady().then(() => {
   const ses = session.defaultSession;
+  try { ses.setSpellCheckerLanguages(['pt-PT']); } catch {}
 
   // Dar acesso automático à câmara, microfone, pedal (HID) e área de transferência
   const allowed = new Set(['media', 'hid', 'clipboard-sanitized-write', 'clipboard-read', 'fullscreen']);
@@ -62,6 +85,7 @@ app.whenReady().then(() => {
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     { label: 'Ficheiro', submenu: [
       { label: 'Abrir pasta de exportações', click: () => shell.openPath(exportDir()) },
+      { label: 'Abrir pasta de relatórios', click: () => shell.openPath(reportDir()) },
       { type: 'separator' },
       { label: 'Sair', role: 'quit' },
     ] },

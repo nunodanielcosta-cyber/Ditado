@@ -17,3 +17,12 @@ Atalhos: Espaço = fotografia, R = gravar/parar, ←/→ = frame anterior/seguin
 - Compilar localmente: `npm install` e depois `npm run dist:win` (gera `dist/DitadoVideo-<versão>-portatil.exe`).
 - Cada push no GitHub compila o `.exe` portátil e o instalador (Actions → "Compilar .exe Windows" → Artifacts).
 - Pedal / botões da câmara: botão "Pedal / botões". O 1.º botão premido = fotografia, o 2.º = gravar.
+
+### Relatórios de exame
+
+- Botão **📝 Relatório** (na sessão): modelos para **Sinuscopia**, **Rinoscopia posterior**, **Laringoscopia** e **Estroboscopia**.
+  Cada secção começa com o texto "normal" e tem uma lista de achados frequentes para inserir com um clique.
+- Seleção das imagens do relatório (fotografias ou frames capturados do vídeo com "🖼 Capturar do vídeo" / tecla C), com legendas, 2–4 por linha.
+- Imprimir ou **Guardar PDF** (na versão .exe vai para `Documentos\Ditado Video\Relatorios`).
+- O cabeçalho (nome da clínica, contactos, logótipo) define-se em **Definições**.
+- Os textos dos modelos estão no objeto `EXAMS` em `index.html` e podem ser alterados.

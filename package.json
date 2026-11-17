@@ -1,7 +1,7 @@
 {
   "name": "ditado-video",
   "productName": "Ditado Video",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Documentação clínica em vídeo e fotografia",
   "main": "main.js",
   "author": "Ditado",
@@ -18,7 +18,7 @@
   "build": {
     "appId": "pt.ditado.video",
     "productName": "Ditado Video",
-    "files": ["index.html", "main.js", "package.json"],
+    "files": ["index.html", "main.js", "preload.js", "package.json"],
     "directories": { "output": "dist" },
     "win": { "signAndEditExecutable": false },
     "portable": { "artifactName": "DitadoVideo-${version}-portatil.exe" },
