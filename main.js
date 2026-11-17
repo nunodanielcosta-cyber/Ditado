@@ -15,12 +15,18 @@ if (!app.requestSingleInstanceLock()) { app.quit(); process.exit(0); }
   app.setPath('userData', found || dir('EndORL'));
 }
 
+// Captura de vídeo: por omissão usa DirectShow (como o DiVAS), que funciona com drivers antigos
+// (ex.: XION Compact / Syntek STK-1160). O Media Foundation pode ser escolhido nas Definições.
+loadCfgEarly();
+function loadCfgEarly() { try { cfg = JSON.parse(fs.readFileSync(path.join(app.getPath('userData'), 'config.json'), 'utf8')); } catch { cfg = {}; } }
+if (cfg.captureBackend !== 'mf') app.commandLine.appendSwitch('disable-features', 'MediaFoundationVideoCapture');
+
 // A página e os ficheiros dos exames são servidos por endorl://app/ (mesma origem → o canvas pode ler os vídeos)
 protocol.registerSchemesAsPrivileged([{ scheme: 'endorl', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } }]);
 
 // ---------- Configuração ----------
 const cfgFile = () => path.join(app.getPath('userData'), 'config.json');
-let cfg = {};
+var cfg; // (carregada logo no arranque, ver loadCfgEarly)
 const loadCfg = () => { try { cfg = JSON.parse(fs.readFileSync(cfgFile(), 'utf8')); } catch { cfg = {}; } };
 const saveCfg = () => { fs.mkdirSync(path.dirname(cfgFile()), { recursive: true }); fs.writeFileSync(cfgFile(), JSON.stringify(cfg, null, 2)); };
 
@@ -110,6 +116,11 @@ ipcMain.handle('store:setRoot', (_e, newRoot, copy) => {
 
 // Definições da versão anterior (guardadas no browser interno) passam para a nova origem
 ipcMain.handle('cfg:migratedSettings', () => cfg.migratedSettings || null);
+ipcMain.handle('cfg:capture', () => cfg.captureBackend === 'mf' ? 'mf' : 'ds');
+ipcMain.handle('cfg:setCapture', (_e, mode) => {
+  cfg.captureBackend = mode === 'mf' ? 'mf' : 'ds'; saveCfg();
+  app.relaunch(); app.exit(0); // a alteração só tem efeito ao reiniciar
+});
 
 // Guardar o relatório (área de impressão da página) como PDF A4, na pasta da sessão
 ipcMain.handle('save-pdf', async (event, name, sessionRel) => {

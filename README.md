@@ -56,3 +56,10 @@ Cada exame fica como ficheiros normais, numa pasta escolhida em **Definições �
   A base antiga não é apagada.
 - **Ver → Atualizar** (Ctrl+R) volta a ler a pasta (útil quando outro posto grava na mesma pasta de rede).
 - A versão de browser (`index.html` aberto no Chrome/Edge) continua a guardar no próprio browser.
+
+### Câmara XION Compact (USB)
+
+A XION Compact é uma placa de captura de vídeo analógico com o chip Syntek STK-1160 (USB `05e1:0408`, driver `StkCMini.sys`
++ filtro XION `xionstkflt.sys` para os botões). A app usa por omissão o modo de captura **DirectShow** (o mesmo do DiVAS),
+porque o Media Foundation (o modo por omissão do Chrome/Edge) não arranca com estes drivers antigos.
+O modo pode ser mudado em **Definições → Modo de captura**. Para câmaras analógicas, a resolução PAL é 720×576.

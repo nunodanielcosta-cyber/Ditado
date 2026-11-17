@@ -335,11 +335,14 @@ dialog.wide{max-width:1100px}
     <label>Serviço<input name="service"></label>
     <label class="full">Morada e contactos<textarea name="clinicInfo" rows="2"></textarea></label>
     <label class="full">Logótipo (PNG/JPG)<input type="file" name="logo" accept="image/*"></label>
+    <label class="full" id="capBox" hidden>Modo de captura de vídeo (a app reinicia ao mudar)<select name="capture">
+      <option value="ds">DirectShow — recomendado (como no DiVAS)</option>
+      <option value="mf">Media Foundation — webcams USB recentes</option></select></label>
     <div class="full" id="rootBox" hidden><div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px">Pasta dos exames (local ou de rede)</div>
       <div class="row" style="flex-wrap:nowrap"><input id="rootPath" readonly style="flex:1">
       <button type="button" id="rootChange">Alterar…</button><button type="button" id="rootOpen" class="icon" title="Abrir pasta"><svg class="i"><use href="#i-folder"/></svg></button></div></div>
     <label>Qualidade JPEG (0.5–1)<input name="jpeg" type="number" step="0.05" min="0.5" max="1"></label>
-    <label>Resolução preferida<select name="res"><option value="640x480">640×480</option><option value="1280x720">1280×720</option><option value="1920x1080">1920×1080</option></select></label>
+    <label>Resolução preferida<select name="res"><option value="720x576">720×576 (PAL — câmara analógica / XION)</option><option value="640x480">640×480</option><option value="1280x720">1280×720</option><option value="1920x1080">1920×1080</option></select></label>
     <label class="full chk"><input type="checkbox" name="sound"> Som ao fotografar / gravar</label>
     <label class="full chk"><input type="checkbox" name="audio"> Gravar áudio com o vídeo</label>
   </div>
@@ -659,10 +662,27 @@ async function listDevices() {
 async function startLive() {
   stopLive();
   const [w, h] = settings.res.split('x').map(Number);
-  const dev = $('#device').value;
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({video: {width: {ideal: w}, height: {ideal: h}, ...(dev ? {deviceId: {exact: dev}} : {})}, audio: settings.audio});
-  } catch (e) { return alert('Não foi possível iniciar a câmara: ' + e.message); }
+  const dev = $('#device').value, label = $('#device').selectedOptions[0]?.textContent || '';
+  const analog = /xion|stk|05e1|easycap|grabber|capture/i.test(label); // placas de vídeo analógico (PAL 720×576)
+  const id = dev ? {deviceId: {exact: dev}} : {};
+  // tentar a resolução escolhida, depois PAL (analógico), depois sem restrições
+  const tries = [{...id, width: {ideal: w}, height: {ideal: h}}, ...(analog ? [{...id, width: {ideal: 720}, height: {ideal: 576}}] : []), id];
+  let err;
+  for (const video of tries) {
+    for (const audio of settings.audio ? [true, false] : [false]) {
+      try { stream = await navigator.mediaDevices.getUserMedia({video, audio}); break; } catch (e) { err = e; }
+    }
+    if (stream) break;
+  }
+  if (!stream) {
+    const busy = err?.name === 'NotReadableError' || /could not start/i.test(err?.message || '');
+    return alert('Não foi possível iniciar a câmara' + (label ? ` "${label}"` : '') + ':\n' + (err?.message || err) + '\n\n' + (busy
+      ? '• Feche outros programas que possam estar a usar a câmara (ex.: DiVAS, Câmara do Windows, Teams).\n• Desligue e volte a ligar o cabo USB da câmara e tente de novo.\n'
+        + (FS ? '• Se continuar: Definições → Modo de captura → experimente o outro modo (a app reinicia).' : '• Experimente a versão de computador (.exe), que usa o mesmo modo de captura do DiVAS.')
+      : '• Verifique se a câmara está ligada e selecionada na lista.'));
+  }
+  const tr = stream.getVideoTracks()[0]?.getSettings() || {};
+  $('#liveBadge').textContent = `AO VIVO${tr.width ? ` · ${tr.width}×${tr.height}` : ''}`;
   await listDevices();
   const st = $('#stage'); st.querySelector('video,img')?.remove();
   const v = document.createElement('video'); v.id = 'live'; v.muted = true; v.autoplay = true; v.playsInline = true; v.srcObject = stream;
@@ -986,7 +1006,8 @@ $('#restoreFile').onchange = async e => {
 // ---------- Definições ----------
 $('#btnSettings').onclick = async () => {
   const f = $('#setDlg form');
-  if (FS) { $('#rootBox').hidden = false; $('#rootPath').value = await FS.root(); }
+  let capWas;
+  if (FS) { $('#rootBox').hidden = false; $('#rootPath').value = await FS.root(); $('#capBox').hidden = false; f.elements.capture.value = capWas = await window.desktop.captureMode(); }
   f.elements.physicians.value = settings.physicians.join('\n'); f.elements.jpeg.value = settings.jpeg;
   f.elements.res.value = settings.res; f.elements.sound.checked = settings.sound; f.elements.audio.checked = settings.audio;
   f.elements.clinic.value = settings.clinic || ''; f.elements.service.value = settings.service || ''; f.elements.clinicInfo.value = settings.clinicInfo || ''; f.elements.logo.value = '';
@@ -1002,6 +1023,7 @@ $('#btnSettings').onclick = async () => {
     Object.assign(settings, {physicians: f.elements.physicians.value.split('\n').map(s => s.trim()).filter(Boolean),
       jpeg: +f.elements.jpeg.value || .92, res: f.elements.res.value, sound: f.elements.sound.checked, audio: f.elements.audio.checked});
     saveSettings(); renderOrg();
+    if (FS && f.elements.capture.value !== capWas && confirm('Mudar o modo de captura e reiniciar a app agora?')) { stopLive(); window.desktop.setCaptureMode(f.elements.capture.value); }
   };
   $('#setDlg').showModal();
 };
@@ -1048,7 +1070,11 @@ function pedalPress(id) {
   if (n === 0 && !$('#btnSnap').disabled) snapshot();
   if (n === 1 && !$('#btnRec').disabled) $('#btnRec').click();
 }
+// Ratos e teclados não servem de pedal (pedais que imitam teclas funcionam já pelas teclas Espaço / R)
+const isMouseOrKeyboard = d => (d.collections || []).some(c => c.usagePage === 1 && (c.usage === 2 || c.usage === 6));
+let pedalDev = null;
 async function attachPedal(d) {
+  pedalDev = d;
   if (!d.opened) await d.open();
   d.oninputreport = onPedalReport;
   $('#pedalState').textContent = 'ligado: ' + (d.productName || 'pedal');
@@ -1056,7 +1082,11 @@ async function attachPedal(d) {
 $('#btnPedal').onclick = async () => {
   if (!navigator.hid) return alert('Este browser não suporta pedais USB. Use a versão de computador (.exe) ou Chrome/Edge.');
   try {
-    const [d] = await navigator.hid.requestDevice({filters: []});
+    if (pedalDev && confirm(`Pedal ligado: ${pedalDev.productName || 'dispositivo'}.\nDesligar este pedal?`)) {
+      try { await pedalDev.close(); await pedalDev.forget?.(); } catch {}
+      pedalDev = null; settings.pedalMap = []; saveSettings(); $('#pedalState').textContent = ''; return;
+    }
+    const [d] = await navigator.hid.requestDevice({filters: [], exclusionFilters: [{usagePage: 1, usage: 2}, {usagePage: 1, usage: 6}]});
     if (!d) return;
     settings.pedalMap = []; saveSettings();
     await attachPedal(d);
@@ -1097,7 +1127,12 @@ async function migrateOld() {
   $('#oto').checked = settings.oto; $('#stage').classList.toggle('oto', settings.oto);
   renderOrg(); await loadPatients(); await loadSessions(); updateButtons();
   try { await listDevices(); } catch {}
-  try { const [d] = await navigator.hid?.getDevices() || []; if (d) await attachPedal(d); } catch {}
+  try {
+    for (const d of await navigator.hid?.getDevices() || []) {
+      if (isMouseOrKeyboard(d)) { try { await d.forget?.(); } catch {} continue; } // corrigir escolhas antigas (ex.: rato)
+      await attachPedal(d); break;
+    }
+  } catch {}
 })();
 </script>
 </body>
