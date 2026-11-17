@@ -1,37 +1,122 @@
 // EndORL — aplicação de computador (Electron) que corre o index.html
-const { app, BrowserWindow, Menu, dialog, shell, session, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, dialog, shell, session, ipcMain, protocol } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { Readable } = require('stream');
 
 // Só uma instância aberta de cada vez (a câmara não pode ser partilhada)
 if (!app.requestSingleInstanceLock()) { app.quit(); process.exit(0); }
 
-// Manter os dados (doentes, sessões, imagens) das versões anteriores ("EndoORL", "Ditado Video")
+// Pasta interna da app (configuração). Usa a das versões anteriores, se existir.
 {
   const dir = n => path.join(app.getPath('appData'), n);
-  const hasData = d => fs.existsSync(path.join(d, 'IndexedDB'));
+  const hasData = d => fs.existsSync(path.join(d, 'IndexedDB')) || fs.existsSync(path.join(d, 'config.json'));
   const found = ['EndORL', 'EndoORL', 'Ditado Video'].map(dir).find(hasData);
   app.setPath('userData', found || dir('EndORL'));
 }
 
-let win;
-const exportDir = () => {
-  const d = path.join(app.getPath('documents'), 'EndORL', 'Exportacoes');
-  fs.mkdirSync(d, { recursive: true });
-  return d;
-};
+// A página e os ficheiros dos exames são servidos por endorl://app/ (mesma origem → o canvas pode ler os vídeos)
+protocol.registerSchemesAsPrivileged([{ scheme: 'endorl', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } }]);
 
-const reportDir = () => {
-  const d = path.join(app.getPath('documents'), 'EndORL', 'Relatorios');
-  fs.mkdirSync(d, { recursive: true });
-  return d;
-};
+// ---------- Configuração ----------
+const cfgFile = () => path.join(app.getPath('userData'), 'config.json');
+let cfg = {};
+const loadCfg = () => { try { cfg = JSON.parse(fs.readFileSync(cfgFile(), 'utf8')); } catch { cfg = {}; } };
+const saveCfg = () => { fs.mkdirSync(path.dirname(cfgFile()), { recursive: true }); fs.writeFileSync(cfgFile(), JSON.stringify(cfg, null, 2)); };
 
-// Guardar o relatório (área de impressão da página) como PDF A4
-ipcMain.handle('save-pdf', async (event, name) => {
-  const safe = String(name || 'Relatorio').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 150);
-  let target = path.join(reportDir(), safe + '.pdf'), n = 1;
-  while (fs.existsSync(target)) target = path.join(reportDir(), `${safe} (${n++}).pdf`);
+const docDir = (...p) => { const d = path.join(app.getPath('documents'), 'EndORL', ...p); fs.mkdirSync(d, { recursive: true }); return d; };
+const exportDir = () => docDir('Exportacoes');
+const dataRoot = () => cfg.dataRoot || path.join(app.getPath('documents'), 'EndORL', 'Exames');
+
+// Caminho dentro da pasta dos exames (nunca fora dela)
+function inRoot(rel = '') {
+  const root = path.resolve(dataRoot());
+  const p = path.resolve(root, String(rel));
+  if (p !== root && !p.startsWith(root + path.sep)) throw new Error('Caminho fora da pasta dos exames: ' + rel);
+  return p;
+}
+const cleanName = s => String(s).replace(/[<>:"/\\|?*\x00-\x1f]+/g, '_').replace(/[. ]+$/, '').slice(0, 120) || 'sem_nome';
+function uniqueIn(parentAbs, base) {
+  base = cleanName(base);
+  let name = base, n = 2;
+  while (fs.existsSync(path.join(parentAbs, name))) name = `${base} (${n++})`;
+  return name;
+}
+function readJSON(f) { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return null; } }
+function writeAtomic(file, data) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const tmp = file + '.tmp';
+  fs.writeFileSync(tmp, data);
+  fs.renameSync(tmp, file);
+}
+
+// ---------- Armazenamento em pastas ----------
+// Estrutura: <raiz>/<processo>_<Apelido>_<Nome>/doente.json
+//                                            /<AAAA-MM-DD_HHMM>_<Exame>/sessao.json + img001.jpg, video001.webm, relatorio.pdf …
+ipcMain.handle('store:root', () => { fs.mkdirSync(dataRoot(), { recursive: true }); return dataRoot(); });
+ipcMain.handle('store:scan', () => {
+  const root = dataRoot();
+  fs.mkdirSync(root, { recursive: true });
+  const patients = [], sessions = [], media = [];
+  for (const pd of fs.readdirSync(root, { withFileTypes: true })) {
+    if (!pd.isDirectory()) continue;
+    const pj = readJSON(path.join(root, pd.name, 'doente.json'));
+    if (!pj?.id) continue;
+    patients.push({ ...pj, dir: pd.name });
+    for (const sd of fs.readdirSync(path.join(root, pd.name), { withFileTypes: true })) {
+      if (!sd.isDirectory()) continue;
+      const sj = readJSON(path.join(root, pd.name, sd.name, 'sessao.json'));
+      if (!sj?.id) continue;
+      const { ficheiros = [], ...s } = sj;
+      sessions.push({ ...s, patientId: pj.id, dir: sd.name });
+      for (const f of ficheiros) media.push({ ...f, sessionId: s.id });
+    }
+  }
+  return { root, patients, sessions, media };
+});
+ipcMain.handle('store:mkUnique', (_e, parentRel, base) => {
+  const parent = inRoot(parentRel);
+  fs.mkdirSync(parent, { recursive: true });
+  const name = uniqueIn(parent, base);
+  fs.mkdirSync(path.join(parent, name));
+  return name;
+});
+ipcMain.handle('store:moveUnique', (_e, fromRel, parentRel, base) => {
+  const from = inRoot(fromRel), parent = inRoot(parentRel);
+  const name = uniqueIn(parent, base);
+  try { fs.renameSync(from, path.join(parent, name)); return name; }
+  catch { return path.basename(from); } // pasta em uso (ex.: vídeo aberto): mantém o nome antigo
+});
+ipcMain.handle('store:writeJSON', (_e, rel, obj) => writeAtomic(inRoot(rel), JSON.stringify(obj, null, 2)));
+ipcMain.handle('store:writeFile', (_e, rel, bytes) => writeAtomic(inRoot(rel), Buffer.from(bytes)));
+ipcMain.handle('store:remove', (_e, rel) => {
+  if (!rel || !String(rel).trim()) throw new Error('Recusado: caminho vazio');
+  fs.rmSync(inRoot(rel), { recursive: true, force: true });
+});
+ipcMain.handle('store:openFolder', (_e, rel) => shell.openPath(inRoot(rel)));
+ipcMain.handle('store:chooseRoot', async e => {
+  const r = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender), {
+    title: 'Pasta onde guardar os exames', defaultPath: dataRoot(), properties: ['openDirectory', 'createDirectory'],
+  });
+  return r.canceled ? null : r.filePaths[0];
+});
+ipcMain.handle('store:setRoot', (_e, newRoot, copy) => {
+  const old = dataRoot();
+  fs.mkdirSync(newRoot, { recursive: true });
+  if (copy && fs.existsSync(old) && path.resolve(old) !== path.resolve(newRoot)) fs.cpSync(old, newRoot, { recursive: true, force: false, errorOnExist: false });
+  cfg.dataRoot = newRoot; saveCfg();
+  return newRoot;
+});
+
+// Definições da versão anterior (guardadas no browser interno) passam para a nova origem
+ipcMain.handle('cfg:migratedSettings', () => cfg.migratedSettings || null);
+
+// Guardar o relatório (área de impressão da página) como PDF A4, na pasta da sessão
+ipcMain.handle('save-pdf', async (event, name, sessionRel) => {
+  const dir = sessionRel ? inRoot(sessionRel) : docDir('Relatorios');
+  const safe = cleanName(name || 'Relatorio');
+  let target = path.join(dir, safe + '.pdf'), n = 2;
+  while (fs.existsSync(target)) target = path.join(dir, `${safe} (${n++}).pdf`);
   // a cor de fundo da janela pinta as margens do PDF: usar branco enquanto se gera
   const w = BrowserWindow.fromWebContents(event.sender);
   w.setBackgroundColor('#ffffff');
@@ -43,6 +128,53 @@ ipcMain.handle('save-pdf', async (event, name) => {
   return target;
 });
 
+// ---------- Servir ficheiros (com suporte de "Range" para avançar nos vídeos) ----------
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.bmp': 'image/bmp',
+  '.webm': 'video/webm', '.mp4': 'video/mp4', '.m4v': 'video/mp4', '.mov': 'video/quicktime', '.ogv': 'video/ogg', '.pdf': 'application/pdf' };
+function serveFile(file, req) {
+  let st;
+  try { st = fs.statSync(file); } catch { return new Response('Não encontrado', { status: 404 }); }
+  if (!st.isFile()) return new Response('Não encontrado', { status: 404 });
+  const headers = { 'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream', 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-cache' };
+  const m = /bytes=(\d*)-(\d*)/.exec(req.headers.get('range') || '');
+  if (m && st.size > 0) {
+    let start = m[1] ? +m[1] : st.size - +m[2], end = m[1] && m[2] ? +m[2] : st.size - 1;
+    start = Math.max(0, start); end = Math.min(end, st.size - 1);
+    if (start > end) return new Response('', { status: 416, headers: { 'Content-Range': `bytes */${st.size}` } });
+    return new Response(Readable.toWeb(fs.createReadStream(file, { start, end })), {
+      status: 206, headers: { ...headers, 'Content-Range': `bytes ${start}-${end}/${st.size}`, 'Content-Length': String(end - start + 1) } });
+  }
+  return new Response(Readable.toWeb(fs.createReadStream(file)), { headers: { ...headers, 'Content-Length': String(st.size) } });
+}
+function handleProtocol(req) {
+  const u = new URL(req.url);
+  const p = decodeURIComponent(u.pathname);
+  try {
+    if (p.startsWith('/data/')) return serveFile(inRoot(p.slice(6)), req);
+    const file = path.join(__dirname, path.normalize(p).replace(/^[\\/]+/, ''));
+    if (!file.startsWith(__dirname)) return new Response('', { status: 403 });
+    return serveFile(file, req);
+  } catch (e) { return new Response(String(e.message), { status: 400 }); }
+}
+
+// ---------- Migração da base de dados antiga (IndexedDB) para pastas ----------
+async function migrateIfNeeded() {
+  const old = path.join(app.getPath('userData'), 'IndexedDB', 'file__0.indexeddb.leveldb');
+  if (cfg.migrated) return;
+  if (!fs.existsSync(old)) { cfg.migrated = true; saveCfg(); return; }
+  const w = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, preload: path.join(__dirname, 'preload.js') } });
+  const done = new Promise(res => ipcMain.once('migrate:done', (_e, r) => res(r)));
+  w.loadFile(path.join(__dirname, 'index.html'), { query: { migrate: '1' } });
+  const r = await Promise.race([done, new Promise(res => setTimeout(() => res({ ok: false, error: 'tempo esgotado' }), 15 * 60 * 1000))]);
+  w.destroy();
+  if (r.settings) cfg.migratedSettings = r.settings;
+  if (r.ok) cfg.migrated = true;
+  else dialog.showErrorBox('EndORL', 'Não foi possível copiar os exames antigos para a pasta:\n' + r.error + '\n\nOs dados antigos não foram apagados. A app volta a tentar no próximo arranque.');
+  saveCfg();
+}
+
+let win;
 function createWindow() {
   win = new BrowserWindow({
     width: 1366, height: 860, minWidth: 900, minHeight: 600,
@@ -50,15 +182,17 @@ function createWindow() {
     webPreferences: { contextIsolation: true, nodeIntegration: false, spellcheck: true, preload: path.join(__dirname, 'preload.js') },
   });
   win.once('ready-to-show', () => { win.maximize(); win.show(); });
-  win.loadFile(path.join(__dirname, 'index.html'));
+  win.loadURL('endorl://app/index.html');
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
 }
 
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  loadCfg();
   const ses = session.defaultSession;
   try { ses.setSpellCheckerLanguages(['pt-PT']); } catch {}
+  protocol.handle('endorl', handleProtocol);
 
   // Dar acesso automático à câmara, microfone, pedal (HID) e área de transferência
   const allowed = new Set(['media', 'hid', 'clipboard-sanitized-write', 'clipboard-read', 'fullscreen']);
@@ -92,26 +226,28 @@ app.whenReady().then(() => {
 
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     { label: 'Ficheiro', submenu: [
+      { label: 'Abrir pasta dos exames', click: () => { fs.mkdirSync(dataRoot(), { recursive: true }); shell.openPath(dataRoot()); } },
       { label: 'Abrir pasta de exportações', click: () => shell.openPath(exportDir()) },
-      { label: 'Abrir pasta de relatórios', click: () => shell.openPath(reportDir()) },
       { type: 'separator' },
       { label: 'Sair', role: 'quit' },
     ] },
     { label: 'Ver', submenu: [
+      { label: 'Atualizar (ler a pasta outra vez)', role: 'reload' },
+      { type: 'separator' },
       { label: 'Ecrã inteiro', role: 'togglefullscreen' },
       { label: 'Aumentar', role: 'zoomIn' }, { label: 'Diminuir', role: 'zoomOut' }, { label: 'Tamanho normal', role: 'resetZoom' },
       { type: 'separator' },
-      { label: 'Recarregar', role: 'reload' },
       { label: 'Ferramentas de programador', role: 'toggleDevTools' },
     ] },
     { label: 'Ajuda', submenu: [
       { label: 'Sobre', click: () => dialog.showMessageBox(win, {
         title: 'Sobre', message: `EndORL ${app.getVersion()}`,
-        detail: 'Documentação clínica em vídeo e fotografia.\nDados guardados em:\n' + app.getPath('userData'),
+        detail: 'Documentação clínica em vídeo e fotografia.\n\nExames guardados em:\n' + dataRoot(),
       }) },
     ] },
   ]));
 
+  await migrateIfNeeded();
   createWindow();
 });
 

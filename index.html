@@ -220,6 +220,7 @@ dialog.wide{max-width:1100px}
 <symbol id="i-pedal" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></symbol>
 <symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></symbol>
 <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></symbol>
+<symbol id="i-folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
 <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
 <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
 </defs></svg>
@@ -287,6 +288,7 @@ dialog.wide{max-width:1100px}
         <button id="btnImport" class="ghost" title="Importar imagens ou vídeos"><svg class="i"><use href="#i-upload"/></svg>Importar</button>
         <input type="file" id="importFile" multiple accept="image/*,video/*" hidden>
         <button id="btnDownload" class="ghost" title="Exportar os selecionados (ou o atual)"><svg class="i"><use href="#i-download"/></svg>Exportar</button>
+        <button id="btnFolder" class="ghost icon" title="Abrir a pasta desta sessão no Explorador" hidden><svg class="i"><use href="#i-folder"/></svg></button>
         <button id="btnClip" class="ghost icon" title="Copiar imagem"><svg class="i"><use href="#i-copy"/></svg></button>
         <button id="btnDelMedia" class="ghost icon" title="Apagar os selecionados (ou o atual)"><svg class="i"><use href="#i-trash"/></svg></button>
         <button id="btnPrint" class="pri"><svg class="i"><use href="#i-report"/></svg>Relatório</button>
@@ -333,6 +335,9 @@ dialog.wide{max-width:1100px}
     <label>Serviço<input name="service"></label>
     <label class="full">Morada e contactos<textarea name="clinicInfo" rows="2"></textarea></label>
     <label class="full">Logótipo (PNG/JPG)<input type="file" name="logo" accept="image/*"></label>
+    <div class="full" id="rootBox" hidden><div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px">Pasta dos exames (local ou de rede)</div>
+      <div class="row" style="flex-wrap:nowrap"><input id="rootPath" readonly style="flex:1">
+      <button type="button" id="rootChange">Alterar…</button><button type="button" id="rootOpen" class="icon" title="Abrir pasta"><svg class="i"><use href="#i-folder"/></svg></button></div></div>
     <label>Qualidade JPEG (0.5–1)<input name="jpeg" type="number" step="0.05" min="0.5" max="1"></label>
     <label>Resolução preferida<select name="res"><option value="640x480">640×480</option><option value="1280x720">1280×720</option><option value="1920x1080">1920×1080</option></select></label>
     <label class="full chk"><input type="checkbox" name="sound"> Som ao fotografar / gravar</label>
@@ -378,8 +383,9 @@ dialog.wide{max-width:1100px}
 <div id="printArea"></div>
 
 <script>
-// ---------- Armazenamento (IndexedDB) ----------
-const DB = (() => {
+// ---------- Armazenamento ----------
+// Versão browser: IndexedDB. Versão de computador (.exe): ficheiros normais numa pasta (ver FileDB).
+const IDB = (() => {
   let db;
   const open = () => new Promise((res, rej) => {
     const r = indexedDB.open('ditado-video', 1);
@@ -402,6 +408,73 @@ const DB = (() => {
     del: (s, k) => p(tx(s, 'readwrite').delete(k)),
   };
 })();
+
+// Cada doente é uma pasta, cada sessão uma subpasta com sessao.json e os ficheiros (img001.jpg, video001.webm, relatorio…).
+const FS = window.desktop?.store;
+const FileDB = (() => {
+  let P = new Map(), S = new Map(), M = new Map();
+  const two = n => String(n).padStart(2, '0');
+  const stamp = t => { const d = new Date(t); return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}_${two(d.getHours())}${two(d.getMinutes())}`; };
+  const clean = t => String(t || '').normalize('NFC').replace(/[<>:"/\\|?*\x00-\x1f]+/g, '').trim().replace(/\s+/g, '_').replace(/[._]+$/, '').slice(0, 70);
+  const patBase = p => p.quick ? `_Rapido_${stamp(p.created)}` : (clean([p.pid, p.surname, p.given].filter(Boolean).join('_')) || 'Doente');
+  const sesBase = s => `${stamp(s.created)}_${clean(s.type) || 'Sessao'}`;
+  const baseOf = d => d.replace(/ \(\d+\)$/, '');
+  const sesRel = s => `${P.get(s.patientId).dir}/${s.dir}`;
+  const EXT = {'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'image/bmp': 'bmp', 'video/webm': 'webm', 'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/ogg': 'ogv'};
+  function fileName(s, m) {
+    const ext = EXT[(m.type || '').split(';')[0]] || (m.origName || '').split('.').pop().toLowerCase().replace(/[^a-z0-9]/g, '') || (m.kind === 'video' ? 'webm' : 'jpg');
+    const pre = m.kind === 'video' ? 'video' : m.fromVideo ? 'frame' : m.imported ? 'import' : 'img';
+    const used = new Set([...M.values()].filter(x => x.sessionId === s.id).map(x => x.file));
+    let n = [...M.values()].filter(x => x.sessionId === s.id).length + 1, f;
+    do f = `${pre}${String(n++).padStart(3, '0')}.${ext}`; while (used.has(f));
+    return f;
+  }
+  async function writePatient(p) { const {dir, ...o} = p; await FS.writeJSON(`${p.dir}/doente.json`, {...o, app: 'EndORL'}); }
+  async function writeSession(s) {
+    const ficheiros = [...M.values()].filter(m => m.sessionId === s.id).sort((a, b) => a.created - b.created).map(({blob, sessionId, ...m}) => m);
+    const {dir, ...o} = s;
+    await FS.writeJSON(`${sesRel(s)}/sessao.json`, {...o, ficheiros});
+  }
+  return {
+    async open() {
+      const r = await FS.scan();
+      P = new Map(r.patients.map(x => [x.id, x])); S = new Map(r.sessions.map(x => [x.id, x])); M = new Map(r.media.map(x => [x.id, x]));
+      this.root = r.root;
+    },
+    has: (st, id) => ({patients: P, sessions: S, media: M})[st].has(id),
+    all: async st => [...({patients: P, sessions: S, media: M})[st].values()],
+    by: async (st, _idx, v) => st === 'sessions' ? [...S.values()].filter(s => s.patientId === v) : [...M.values()].filter(m => m.sessionId === v),
+    async put(st, o) {
+      if (st === 'patients') {
+        const dir = P.get(o.id)?.dir || o.dir;
+        if (!dir) o.dir = await FS.mkUnique('', patBase(o));
+        else o.dir = baseOf(dir) === patBase(o) ? dir : await FS.moveUnique(dir, '', patBase(o)); // nome alterado → renomear a pasta
+        P.set(o.id, o); await writePatient(o);
+      } else if (st === 'sessions') {
+        if (!P.has(o.patientId)) throw new Error('Doente da sessão não encontrado');
+        o.dir = S.get(o.id)?.dir || await FS.mkUnique(P.get(o.patientId).dir, sesBase(o));
+        S.set(o.id, o); await writeSession(o);
+      } else {
+        const s = S.get(o.sessionId);
+        if (!s) throw new Error('Sessão não encontrada');
+        if (o.blob && !o.file) {
+          o.file = fileName(s, o);
+          await FS.writeFile(`${sesRel(s)}/${o.file}`, new Uint8Array(await o.blob.arrayBuffer()));
+        }
+        delete o.blob;
+        M.set(o.id, o); await writeSession(s);
+      }
+    },
+    async del(st, id) {
+      if (st === 'patients') { const p = P.get(id); P.delete(id); if (p) await FS.remove(p.dir); }
+      else if (st === 'sessions') { const s = S.get(id); if (!s) return; await FS.remove(sesRel(s)); S.delete(id); for (const [k, m] of M) if (m.sessionId === id) M.delete(k); }
+      else { const m = M.get(id); if (!m) return; const s = S.get(m.sessionId); M.delete(id); if (s) { await FS.remove(`${sesRel(s)}/${m.file}`); await writeSession(s); } }
+    },
+    fileUrl: m => { const s = S.get(m.sessionId); return 'endorl://app/data/' + `${sesRel(s)}/${m.file}`.split('/').map(encodeURIComponent).join('/'); },
+    sessionRel: s => sesRel(s),
+  };
+})();
+const DB = FS ? FileDB : IDB;
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -423,8 +496,9 @@ let patients = [], sessions = [], media = [];
 let curPat = null, curSes = null, curMedia = null;
 let stream = null, recorder = null, recChunks = [], recStart = 0, recTimer = null;
 const selected = new Set();
-const urls = new Map();
-const urlFor = m => { if (!urls.has(m.id)) urls.set(m.id, URL.createObjectURL(m.blob)); return urls.get(m.id); };
+const urls = new Map(); // só para ficheiros em memória (versão browser); na versão .exe usa-se o endereço do ficheiro
+const urlFor = m => { if (!m.blob) return DB.fileUrl(m); if (!urls.has(m.id)) urls.set(m.id, URL.createObjectURL(m.blob)); return urls.get(m.id); };
+const getBlob = async m => m.blob || (await fetch(urlFor(m))).blob();
 
 // ---------- Doentes ----------
 async function loadPatients() {
@@ -452,7 +526,8 @@ $('#search').oninput = renderPatients;
 async function selectPatient(id) {
   curPat = patients.find(p => p.id === id) || null;
   curSes = null; curMedia = null; selected.clear();
-  renderPatients();
+  // marcar sem redesenhar a lista (para o duplo clique de editar funcionar)
+  document.querySelectorAll('#patList .item').forEach(i => i.classList.toggle('on', i.dataset.id === id));
   $('#btnNewSession').disabled = !curPat;
   await loadSessions();
 }
@@ -470,6 +545,7 @@ function editPatient(p) {
     const dup = patients.find(x => x.id !== p?.id && data.pid && x.pid === data.pid);
     if (dup && !confirm(`Já existe um doente com o ID ${data.pid} (${dup.surname}, ${dup.given}). Continuar?`)) return;
     const o = {...(p || {id: uid(), created: Date.now()}), ...data, quick: false, modified: Date.now()};
+    if (p) { $('#stage').querySelector('img,video:not(#live)')?.remove(); curMedia = null; syncStage(); } // a pasta pode ser renomeada
     await DB.put('patients', o);
     await loadPatients();
     selectPatient(o.id);
@@ -492,10 +568,11 @@ $('#btnQuick').onclick = async () => {
 };
 
 // ---------- Sessões ----------
-async function loadSessions() {
+async function loadSessions(keepList) {
   sessions = curPat ? (await DB.by('sessions', 'pat', curPat.id)).sort((a, b) => b.created - a.created) : [];
   $('#sesCount').textContent = sessions.length;
-  $('#sesList').innerHTML = sessions.map(s => `<div class="item ${s.id === curSes?.id ? 'on' : ''}" data-id="${s.id}" title="Duplo clique para editar">
+  if (keepList) document.querySelectorAll('#sesList .item').forEach(i => i.classList.toggle('on', i.dataset.id === curSes?.id));
+  else $('#sesList').innerHTML = sessions.map(s => `<div class="item ${s.id === curSes?.id ? 'on' : ''}" data-id="${s.id}" title="Duplo clique para editar">
     <div class="txt"><div class="row" style="gap:6px;flex-wrap:nowrap">${badge(s.type)}${s.report ? '<span class="tag-ok"><svg class="i" style="width:13px;height:13px"><use href="#i-check"/></svg>Relatório</span>' : ''}</div>
     <small style="margin-top:3px">${fmtDT(s.created)}${s.physician ? ' · ' + esc(s.physician) : ''}</small>
     ${s.diagnosis ? `<small>${esc(s.diagnosis)}</small>` : ''}</div></div>`).join('')
@@ -505,7 +582,7 @@ async function loadSessions() {
     : [curPat.pid ? 'Proc. ' + esc(curPat.pid) : '', curPat.birth ? age(curPat.birth, Date.now()) : '', 'selecione ou crie uma sessão'].filter(Boolean).join(' · ')) : 'Escolha um doente na lista à esquerda';
   await loadMedia();
 }
-$('#sesList').onclick = e => { const it = e.target.closest('.item'); if (it) { curSes = sessions.find(s => s.id === it.dataset.id); curMedia = null; selected.clear(); loadSessions(); } };
+$('#sesList').onclick = e => { const it = e.target.closest('.item'); if (it && it.dataset.id !== curSes?.id) { curSes = sessions.find(s => s.id === it.dataset.id); curMedia = null; selected.clear(); loadSessions(true); } };
 $('#sesList').ondblclick = e => { const it = e.target.closest('.item'); if (it) editSession(sessions.find(s => s.id === it.dataset.id)); };
 
 function editSession(s) {
@@ -659,18 +736,19 @@ $('#btnDownload').onclick = () => targets().forEach(m => {
 $('#btnClip').onclick = async () => {
   const m = targets().find(m => m.kind === 'image'); if (!m) return alert('Selecione uma imagem.');
   try {
-    const img = await createImageBitmap(m.blob); const c = new OffscreenCanvas(img.width, img.height); c.getContext('2d').drawImage(img, 0, 0);
+    const img = await createImageBitmap(await getBlob(m)); const c = new OffscreenCanvas(img.width, img.height); c.getContext('2d').drawImage(img, 0, 0);
     await navigator.clipboard.write([new ClipboardItem({'image/png': await c.convertToBlob({type: 'image/png'})})]);
   } catch (e) { alert('Não foi possível copiar: ' + e.message); }
 };
 $('#btnImport').onclick = () => $('#importFile').click();
 $('#importFile').onchange = async e => {
-  for (const f of e.target.files) await addMedia(f, f.type.startsWith('video') ? 'video' : 'image');
+  for (const f of e.target.files) await addMedia(f, f.type.startsWith('video') ? 'video' : 'image', {imported: true, origName: f.name});
   e.target.value = '';
 };
 $('#btnDelMedia').onclick = async () => {
   const t = targets(); if (!t.length || !confirm(`Apagar ${t.length} ficheiro(s)?`)) return;
-  for (const m of t) { await DB.del('media', m.id); URL.revokeObjectURL(urls.get(m.id)); urls.delete(m.id); }
+  $('#stage').querySelector('img,video:not(#live)')?.remove(); // libertar o ficheiro antes de o apagar
+  for (const m of t) { await DB.del('media', m.id); if (urls.has(m.id)) URL.revokeObjectURL(urls.get(m.id)); urls.delete(m.id); }
   selected.clear(); curMedia = null; $('#stage').querySelector('img,video:not(#live)')?.remove(); syncStage(); loadMedia();
 };
 // ---------- Capturar imagem de um vídeo gravado ----------
@@ -874,7 +952,7 @@ $('#repPrint').onclick = async () => { await saveReport(); await buildPrint(); a
 $('#repPdf').onclick = async () => {
   await saveReport(); await buildPrint();
   if (window.desktop?.savePDF) {
-    let f; try { await printing(async () => { f = await window.desktop.savePDF(reportFileName()); }); alert('PDF guardado em:\n' + f); }
+    let f; try { await printing(async () => { f = await window.desktop.savePDF(reportFileName(), DB.sessionRel?.(curSes)); }); alert('PDF guardado em:\n' + f); }
     catch (err) { alert('Não foi possível guardar o PDF: ' + err.message); }
   } else {
     alert('No browser, escolha "Guardar como PDF" na janela de impressão que vai abrir.');
@@ -886,7 +964,7 @@ $('#btnPrint').onclick = openReport;
 const toB64 = b => new Promise(r => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(b); });
 $('#btnBackup').onclick = async () => {
   const all = {version: 1, patients: await DB.all('patients'), sessions: await DB.all('sessions'), media: []};
-  for (const m of await DB.all('media')) all.media.push({...m, blob: await toB64(m.blob)});
+  for (const m of await DB.all('media')) { const {file, ...o} = m; all.media.push({...o, blob: await toB64(await getBlob(m))}); }
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(all)], {type: 'application/json'}));
   a.download = `endorl-backup-${new Date().toISOString().slice(0, 10)}.json`; a.click();
 };
@@ -895,9 +973,10 @@ $('#restoreFile').onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
   try {
     const d = JSON.parse(await f.text());
-    for (const p of d.patients) await DB.put('patients', p);
-    for (const s of d.sessions) await DB.put('sessions', s);
-    for (const m of d.media) await DB.put('media', {...m, blob: await (await fetch(m.blob)).blob()});
+    const strip = ({dir, file, ...o}) => o;
+    for (const p of d.patients) await DB.put('patients', strip(p));
+    for (const s of d.sessions) await DB.put('sessions', strip(s));
+    for (const m of d.media) if (!(await DB.by('media', 'ses', m.sessionId)).some(x => x.id === m.id)) await DB.put('media', {...strip(m), blob: await (await fetch(m.blob)).blob()});
     alert(`Restaurado: ${d.patients.length} doentes, ${d.sessions.length} sessões, ${d.media.length} ficheiros.`);
     loadPatients();
   } catch (err) { alert('Ficheiro inválido: ' + err.message); }
@@ -905,8 +984,9 @@ $('#restoreFile').onchange = async e => {
 };
 
 // ---------- Definições ----------
-$('#btnSettings').onclick = () => {
+$('#btnSettings').onclick = async () => {
   const f = $('#setDlg form');
+  if (FS) { $('#rootBox').hidden = false; $('#rootPath').value = await FS.root(); }
   f.elements.physicians.value = settings.physicians.join('\n'); f.elements.jpeg.value = settings.jpeg;
   f.elements.res.value = settings.res; f.elements.sound.checked = settings.sound; f.elements.audio.checked = settings.audio;
   f.elements.clinic.value = settings.clinic || ''; f.elements.service.value = settings.service || ''; f.elements.clinicInfo.value = settings.clinicInfo || ''; f.elements.logo.value = '';
@@ -926,10 +1006,22 @@ $('#btnSettings').onclick = () => {
   $('#setDlg').showModal();
 };
 
+if (FS) {
+  $('#rootOpen').onclick = () => FS.openFolder('');
+  $('#rootChange').onclick = async () => {
+    const dir = await FS.chooseRoot(); if (!dir) return;
+    const copy = confirm(`Nova pasta dos exames:\n${dir}\n\nCopiar os exames atuais para lá?\n(OK = copiar · Cancelar = usar a pasta como está, por exemplo uma pasta de rede que já tem exames)`);
+    await FS.setRoot(dir, copy); $('#rootPath').value = dir;
+    curPat = curSes = curMedia = null; await DB.open(); await loadPatients(); await loadSessions();
+  };
+}
+$('#btnFolder').onclick = () => FS && curSes && FS.openFolder(DB.sessionRel(curSes));
+
 function updateButtons() {
   const live = !!stream, ok = live && !!curSes;
   $('#btnSnap').disabled = !ok; $('#btnRec').disabled = !ok && !recorder;
-  for (const b of ['#btnDownload', '#btnClip', '#btnPrint', '#btnDelMedia', '#btnImport']) $(b).disabled = !curSes;
+  for (const b of ['#btnDownload', '#btnClip', '#btnPrint', '#btnDelMedia', '#btnImport', '#btnFolder']) $(b).disabled = !curSes;
+  $('#btnFolder').hidden = !FS;
   syncStage();
 }
 function renderOrg() {
@@ -982,8 +1074,26 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowLeft') step(-1);
 });
 
+// Migração (só na versão .exe): copia a base de dados antiga do browser interno para pastas
+async function migrateOld() {
+  const settingsRaw = localStorage.getItem('dv-settings');
+  try {
+    await IDB.open(); await FileDB.open();
+    const ps = await IDB.all('patients'), ss = await IDB.all('sessions'), ms = await IDB.all('media');
+    for (const p of ps) if (!FileDB.has('patients', p.id)) await FileDB.put('patients', {...p});
+    for (const x of ss) if (!FileDB.has('sessions', x.id) && FileDB.has('patients', x.patientId)) await FileDB.put('sessions', {...x});
+    for (const m of ms) if (!FileDB.has('media', m.id) && FileDB.has('sessions', m.sessionId)) await FileDB.put('media', {...m});
+    window.desktop.migrateDone({ok: true, settings: settingsRaw, counts: [ps.length, ss.length, ms.length]});
+  } catch (e) { window.desktop.migrateDone({ok: false, error: e.message, settings: settingsRaw}); }
+}
+
 (async () => {
-  await DB.open();
+  if (FS && new URLSearchParams(location.search).has('migrate')) return migrateOld();
+  if (FS && !localStorage.getItem('dv-settings')) { // definições da versão anterior
+    try { const old = await window.desktop.migratedSettings(); if (old) { settings = {...defaults, ...JSON.parse(old)}; saveSettings(); } } catch {}
+  }
+  try { await DB.open(); }
+  catch (e) { alert('Não foi possível abrir a pasta dos exames:\n' + e.message + '\n\nVerifique a ligação à pasta (ex.: rede) em Definições.'); }
   $('#oto').checked = settings.oto; $('#stage').classList.toggle('oto', settings.oto);
   renderOrg(); await loadPatients(); await loadSessions(); updateButtons();
   try { await listDevices(); } catch {}

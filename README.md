@@ -36,3 +36,23 @@ e volte a compilar. Em alternativa, carregue-o em **Definições → Logótipo**
 ### Logótipo da app
 
 `build/logo.svg` (original) e `build/icon.png` (512×512, ícone do .exe e da janela): vista endoscópica circular da glote.
+
+### Onde ficam os exames (versão .exe)
+
+Cada exame fica como ficheiros normais, numa pasta escolhida em **Definições → Pasta dos exames**
+(por omissão `Documentos\EndORL\Exames`; pode ser um disco local ou uma pasta de rede):
+
+```
+<pasta dos exames>\
+  └─ <n.º processo>_<Apelido>_<Nome>\
+      ├─ doente.json
+      └─ <AAAA-MM-DD_HHMM>_<Exame>\
+          ├─ img001.jpg  frame003.jpg  video002.webm
+          ├─ Relatorio_<Exame>_<Doente>_<data>.pdf
+          └─ sessao.json   (dados do exame, relatório e lista de ficheiros)
+```
+
+- Na primeira execução, os exames guardados pelas versões anteriores (base de dados interna) são copiados para esta estrutura.
+  A base antiga não é apagada.
+- **Ver → Atualizar** (Ctrl+R) volta a ler a pasta (útil quando outro posto grava na mesma pasta de rede).
+- A versão de browser (`index.html` aberto no Chrome/Edge) continua a guardar no próprio browser.
