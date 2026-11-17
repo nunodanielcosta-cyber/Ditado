@@ -63,3 +63,16 @@ A XION Compact é uma placa de captura de vídeo analógico com o chip Syntek ST
 + filtro XION `xionstkflt.sys` para os botões). A app usa por omissão o modo de captura **DirectShow** (o mesmo do DiVAS),
 porque o Media Foundation (o modo por omissão do Chrome/Edge) não arranca com estes drivers antigos.
 O modo pode ser mudado em **Definições → Modo de captura**. Para câmaras analógicas, a resolução PAL é 720×576.
+
+### Botões da câmara XION (v1.6)
+
+O driver da XION (`xionstkflt.sys`) cria `\\.\XionCAMCtl0`, com comandos para ler/escrever registos do chip
+(`0x88272004` identificação, `0x88272008` ler, `0x8827200c` escrever). Tal como o DiVAS, a app escreve reg2=0xFF,
+põe os bits 0–1 do reg3 a 0 e lê o registo 1 periodicamente: bit `0x02` = botão A, bit `0x01` = botão B (0 = premido).
+A leitura é feita por um processo PowerShell (`xion-buttons.js`), sem módulos nativos. Em **Definições → Botões da câmara XION**
+escolhe-se a ação de cada botão e há um **Diagnóstico** com o registo das leituras.
+
+### Melhoria de imagem (v1.6)
+
+Botão **Imagem**: correção das riscas do vídeo entrelaçado (desentrelaçamento adaptativo, só onde há movimento),
+brilho, contraste, saturação, nitidez e gama, em WebGL. O vídeo ao vivo, as fotografias e as gravações ficam com a melhoria.

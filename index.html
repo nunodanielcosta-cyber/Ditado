@@ -81,7 +81,8 @@ main{display:grid;grid-template-columns:310px 1fr;gap:14px;padding:14px;height:c
 .ctx select{width:auto;max-width:260px}
 #stage{position:relative;background:var(--stage);display:flex;align-items:center;justify-content:center;min-height:0;overflow:hidden;margin:12px 12px 0;border-radius:10px}
 #stage video,#stage img{max-width:100%;max-height:100%}
-#stage.oto video,#stage.oto img{-webkit-mask:radial-gradient(ellipse 36.5% 48.5% at 49% 50%,#000 99%,transparent 100%);mask:radial-gradient(ellipse 36.5% 48.5% at 49% 50%,#000 99%,transparent 100%)}
+#stage canvas{max-width:100%;max-height:100%}
+#stage.oto video,#stage.oto img,#stage.oto canvas{-webkit-mask:radial-gradient(ellipse 36.5% 48.5% at 49% 50%,#000 99%,transparent 100%);mask:radial-gradient(ellipse 36.5% 48.5% at 49% 50%,#000 99%,transparent 100%)}
 #stage .empty{color:#8aa0ad;text-align:center;padding:24px;max-width:460px}
 #stage .empty svg{width:84px;height:84px;opacity:.9;margin-bottom:10px}
 #stage .empty h3{color:#e3edf2;margin:0 0 6px;font-weight:600;font-size:17px}
@@ -104,6 +105,14 @@ main{display:grid;grid-template-columns:310px 1fr;gap:14px;padding:14px;height:c
 #btnRec .dot{width:11px;height:11px;border-radius:50%;background:var(--rec)}
 #btnRec.rec .dot{border-radius:2px;background:#fff}
 #pedalState{font-size:12px;color:var(--ok)}
+#imgPanel{position:absolute;right:14px;bottom:205px;z-index:5;width:300px;background:var(--panel);border:1px solid var(--line2);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.35);padding:14px}
+#imgPanel h4{margin:0 0 10px;font-size:14px;display:flex;align-items:center;gap:8px}
+#imgPanel h4 span{flex:1}
+#imgPanel .sl{display:grid;grid-template-columns:86px 1fr 38px;align-items:center;gap:8px;font-size:12.5px;margin:6px 0}
+#imgPanel .sl input{padding:0;accent-color:var(--accent)}
+#imgPanel .sl output{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+#imgPanel .chk{display:flex;gap:8px;align-items:center;font-size:13px;margin:4px 0 8px}
+#work{position:relative}
 
 /* Galeria */
 .gal{border-top:1px solid var(--line);background:var(--panel2);border-radius:0 0 var(--r) var(--r)}
@@ -148,6 +157,10 @@ dialog h3{margin:0 0 16px;font-size:18px}
 .rep-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}
 .rep-grid .long{grid-column:1/-1}
 .rep-sec h4{margin:0 0 2px;font-size:10.5pt;color:#0b6e8a}
+.seg{display:inline-flex;background:var(--panel2);border:1px solid var(--line2);border-radius:9px;padding:2px}
+.seg button{border:0;background:transparent;padding:5px 11px;border-radius:7px;font-size:13px}
+.seg button.on{background:var(--accent);color:var(--accent-ink);font-weight:600}
+#repFreeBox .lab span{font-weight:400}
 .rep-sec p{margin:0;white-space:pre-line}
 .rep-imgs{display:grid;gap:8px;margin:10px 0}
 .rep-imgs figure{margin:0;break-inside:avoid;text-align:center}
@@ -221,6 +234,7 @@ dialog.wide{max-width:1100px}
 <symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></symbol>
 <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></symbol>
 <symbol id="i-folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/></symbol>
 <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
 <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
 </defs></svg>
@@ -275,11 +289,22 @@ dialog.wide{max-width:1100px}
       </div>
       <span style="flex:1"></span>
       <div class="grp">
+        <button id="btnImg" title="Melhoria de imagem: corrigir riscas, brilho, contraste, nitidez"><svg class="i"><use href="#i-sun"/></svg>Imagem</button>
         <label title="Máscara circular (otoscopia)"><input type="checkbox" id="oto"><svg class="i"><use href="#i-circle"/></svg>Máscara</label>
         <button id="btnPedal" title="Ligar pedal USB ou botões da câmara (botão 1 = fotografia, botão 2 = gravar)"><svg class="i"><use href="#i-pedal"/></svg>Pedal</button>
         <button id="btnFull" class="icon" title="Ecrã inteiro"><svg class="i"><use href="#i-max"/></svg></button>
       </div>
       <span id="pedalState"></span>
+    </div>
+    <div id="imgPanel" hidden>
+      <h4><svg class="i"><use href="#i-sun"/></svg><span>Melhoria de imagem</span><button type="button" class="ghost icon" id="imgClose" title="Fechar">✕</button></h4>
+      <label class="chk"><input type="checkbox" data-k="deint"> Corrigir riscas (desentrelaçar)</label>
+      <div class="sl"><span>Brilho</span><input type="range" data-k="bri" min="-0.3" max="0.3" step="0.01"><output></output></div>
+      <div class="sl"><span>Contraste</span><input type="range" data-k="con" min="0.5" max="1.8" step="0.01"><output></output></div>
+      <div class="sl"><span>Saturação</span><input type="range" data-k="sat" min="0" max="2" step="0.01"><output></output></div>
+      <div class="sl"><span>Nitidez</span><input type="range" data-k="sharp" min="0" max="2" step="0.05"><output></output></div>
+      <div class="sl"><span>Gama</span><input type="range" data-k="gam" min="0.6" max="1.6" step="0.01"><output></output></div>
+      <div class="row" style="justify-content:space-between;margin-top:8px"><span class="muted" id="imgNote" style="font-size:11.5px"></span><button type="button" id="imgReset">Repor</button></div>
     </div>
     <div class="gal">
       <div class="bar">
@@ -305,7 +330,7 @@ dialog.wide{max-width:1100px}
     <label>Nome próprio*<input name="given" required></label>
     <label>Data de nascimento<input name="birth" type="date"></label>
     <label>Género<select name="gender"><option value="">—</option><option>F</option><option>M</option><option>Outro</option></select></label>
-    <label>N.º processo / ID<input name="pid"></label>
+    <label>N.º processo*<input name="pid" required autocomplete="off"></label>
     <label>Telefone<input name="phone"></label>
     <label class="full">Morada<input name="address"></label>
     <label class="full">Observações<textarea name="comment" rows="3"></textarea></label>
@@ -338,6 +363,10 @@ dialog.wide{max-width:1100px}
     <label class="full" id="capBox" hidden>Modo de captura de vídeo (a app reinicia ao mudar)<select name="capture">
       <option value="ds">DirectShow — recomendado (como no DiVAS)</option>
       <option value="mf">Media Foundation — webcams USB recentes</option></select></label>
+    <div class="full" id="xionBox" hidden><div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px">Botões da câmara XION</div>
+      <div class="row" style="flex-wrap:nowrap"><label class="chk" style="font-weight:400;color:var(--ink);font-size:13.5px;flex-direction:row;display:flex;gap:6px;align-items:center"><input type="checkbox" name="xionOn"> Ativos</label>
+        <span class="muted" id="xionStatus" style="font-size:12px;flex:1"></span><button type="button" id="xionDiag">Diagnóstico</button></div>
+      <div class="row" style="margin-top:6px;flex-wrap:nowrap"><label style="flex:1">Botão A<select name="xionA"></select></label><label style="flex:1">Botão B<select name="xionB"></select></label></div></div>
     <div class="full" id="rootBox" hidden><div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px">Pasta dos exames (local ou de rede)</div>
       <div class="row" style="flex-wrap:nowrap"><input id="rootPath" readonly style="flex:1">
       <button type="button" id="rootChange">Alterar…</button><button type="button" id="rootOpen" class="icon" title="Abrir pasta"><svg class="i"><use href="#i-folder"/></svg></button></div></div>
@@ -353,6 +382,7 @@ dialog.wide{max-width:1100px}
   <div class="row" style="margin-bottom:10px">
     <h3 style="margin:0;flex:1" id="repDlgTitle">Relatório</h3>
     <label class="row" style="gap:6px;width:auto">Exame <select id="repExam" style="width:auto"></select></label>
+    <div class="seg" id="repMode" title="Formato do relatório"><button type="button" data-m="structured">Estruturado</button><button type="button" data-m="free">Texto livre</button></div>
     <label class="row" style="gap:6px;width:auto">Médico <select id="repPhys" style="width:auto"></select></label>
     <label class="row" style="gap:6px;width:auto">Data <input id="repDate" type="date" style="width:auto"></label>
   </div>
@@ -361,6 +391,7 @@ dialog.wide{max-width:1100px}
       <div class="fld"><div class="lab"><b>Indicação clínica / motivo do exame</b></div><textarea id="repInd" rows="2"></textarea></div>
       <div class="fld"><div class="lab"><b>Técnica</b></div><textarea id="repTec" rows="2"></textarea></div>
       <div id="repFields"></div>
+      <div class="fld" id="repFreeBox" hidden><div class="lab"><b>Descrição do exame</b><span>texto livre — já com o relatório normal; altere o que for preciso</span></div><textarea id="repFree" rows="14"></textarea></div>
       <div class="fld"><div class="lab"><b>Conclusão</b></div><textarea id="repConc" rows="3"></textarea></div>
       <div class="fld"><div class="lab"><b>Recomendações / plano</b></div><textarea id="repRec" rows="2"></textarea></div>
     </div>
@@ -541,12 +572,24 @@ function editPatient(p) {
   $('#patDlgTitle').textContent = p ? 'Editar doente' : 'Novo doente';
   $('#patDel').style.visibility = p ? 'visible' : 'hidden';
   if (p) for (const k of ['surname', 'given', 'birth', 'gender', 'pid', 'phone', 'address', 'comment']) f.elements[k].value = p[k] || '';
+  let goTo = null;
+  // validar antes de fechar (o diálogo fica aberto e nada se perde)
+  f.onsubmit = e => {
+    if (e.submitter?.value !== 'ok') return;
+    for (const k of ['surname', 'given', 'pid']) f.elements[k].value = f.elements[k].value.trim();
+    const pid = f.elements.pid.value, birth = f.elements.birth.value;
+    if (!pid) { e.preventDefault(); f.elements.pid.focus(); return alert('O n.º de processo é obrigatório.'); }
+    if (birth && new Date(birth) > new Date()) { e.preventDefault(); return alert('A data de nascimento tem de estar no passado.'); }
+    const dup = patients.find(x => x.id !== p?.id && String(x.pid || '').trim().toLowerCase() === pid.toLowerCase());
+    if (dup) {
+      e.preventDefault();
+      if (confirm(`Já existe um doente com o n.º de processo ${pid}:\n${dup.surname}, ${dup.given}${dup.birth ? ' (' + fmtDate(dup.birth) + ')' : ''}\n\nAbrir esse doente?`)) { goTo = dup.id; $('#patDlg').close('cancel'); }
+    }
+  };
   $('#patDlg').onclose = async () => {
+    if (goTo) return selectPatient(goTo);
     if ($('#patDlg').returnValue !== 'ok') return;
     const data = Object.fromEntries(new FormData(f));
-    if (data.birth && new Date(data.birth) > new Date()) return alert('A data de nascimento tem de estar no passado.');
-    const dup = patients.find(x => x.id !== p?.id && data.pid && x.pid === data.pid);
-    if (dup && !confirm(`Já existe um doente com o ID ${data.pid} (${dup.surname}, ${dup.given}). Continuar?`)) return;
     const o = {...(p || {id: uid(), created: Date.now()}), ...data, quick: false, modified: Date.now()};
     if (p) { $('#stage').querySelector('img,video:not(#live)')?.remove(); curMedia = null; syncStage(); } // a pasta pode ser renomeada
     await DB.put('patients', o);
@@ -629,7 +672,7 @@ $('#strip').onclick = e => {
 };
 function syncStage() {
   const st = $('#stage');
-  st.querySelector('.empty').style.display = st.querySelector('video,img') ? 'none' : '';
+  st.querySelector('.empty').style.display = st.querySelector('video,img,canvas') ? 'none' : '';
   $('#liveBadge').style.display = $('#live') ? 'flex' : 'none';
   $('#btnLive').innerHTML = `<svg class="i"><use href="#i-power"/></svg>${stream ? 'Desligar câmara' : 'Ligar câmara'}`;
   $('#btnLive').classList.toggle('pri', !stream && !!curSes);
@@ -638,7 +681,7 @@ function showMedia(m) {
   curMedia = m;
   document.querySelectorAll('.thumb').forEach(t => t.classList.toggle('on', t.dataset.id === m.id));
   stopLive();
-  const st = $('#stage'); st.querySelector('video,img')?.remove();
+  const st = $('#stage'); st.querySelector('video,img,canvas')?.remove();
   const el = document.createElement(m.kind === 'video' ? 'video' : 'img');
   el.src = urlFor(m);
   if (m.kind === 'video') {
@@ -652,6 +695,81 @@ async function addMedia(blob, kind, extra = {}) {
   await DB.put('media', m); await loadMedia();
 }
 const targets = () => selected.size ? media.filter(m => selected.has(m.id)) : curMedia ? [curMedia] : [];
+
+// ---------- Melhoria de imagem (WebGL) ----------
+// Corrige as riscas do vídeo analógico entrelaçado (só onde há movimento) e ajusta brilho, contraste, saturação, nitidez e gama.
+// O que se vê no ecrã é o que fica gravado (fotografias e vídeos).
+const IMG_DEFAULTS = {deint: true, bri: 0, con: 1, sat: 1, sharp: 0.3, gam: 1};
+settings.img = {...IMG_DEFAULTS, ...(settings.img || {})};
+class ImageProc {
+  constructor() {
+    this.canvas = document.createElement('canvas');
+    const gl = this.gl = this.canvas.getContext('webgl', {preserveDrawingBuffer: true, antialias: false});
+    if (!gl) throw new Error('WebGL indisponível');
+    const sh = (type, src) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
+    const pr = this.pr = gl.createProgram();
+    gl.attachShader(pr, sh(gl.VERTEX_SHADER, 'attribute vec2 p;varying vec2 uv;void main(){uv=vec2((p.x+1.)*.5,(1.-p.y)*.5);gl_Position=vec4(p,0.,1.);}'));
+    gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, `precision mediump float;
+      uniform sampler2D t; uniform vec2 px; uniform float deint, bri, con, sat, sharp, gam; varying vec2 uv;
+      vec3 T(vec2 o){ return texture2D(t, uv + o * px).rgb; }
+      vec3 D(vec2 o){                       // pixel desentrelaçado (adaptativo: só onde há "pente")
+        vec3 c = T(o);
+        if (deint < .5) return c;
+        float row = floor((uv.y + o.y * px.y) / px.y);
+        if (mod(row, 2.) < .5) return c;
+        vec3 a = T(o + vec2(0., -1.)), b = T(o + vec2(0., 1.)), m = (a + b) * .5;
+        float comb = max(0., length(c - m) - .5 * length(a - b));
+        return mix(c, m, smoothstep(.03, .10, comb));
+      }
+      void main(){
+        vec3 c = D(vec2(0.));
+        if (sharp > .001) { vec3 bl = (D(vec2(1., 0.)) + D(vec2(-1., 0.)) + D(vec2(0., 1.)) + D(vec2(0., -1.))) * .25; c += (c - bl) * sharp; }
+        c = (c - .5) * con + .5 + bri;
+        c = mix(vec3(dot(c, vec3(.299, .587, .114))), c, sat);
+        c = pow(clamp(c, 0., 1.), vec3(1. / gam));
+        gl_FragColor = vec4(c, 1.);
+      }`));
+    gl.linkProgram(pr); if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
+    gl.useProgram(pr);
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(pr, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+    for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.NEAREST], [gl.TEXTURE_MAG_FILTER, gl.NEAREST], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+    this.u = Object.fromEntries(['px', 'deint', 'bri', 'con', 'sat', 'sharp', 'gam'].map(n => [n, gl.getUniformLocation(pr, n)]));
+  }
+  render(src, w, h, p = settings.img) {
+    const gl = this.gl, c = this.canvas;
+    if (!w || !h) return false;
+    if (c.width !== w || c.height !== h) { c.width = w; c.height = h; gl.viewport(0, 0, w, h); }
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+    gl.uniform2f(this.u.px, 1 / w, 1 / h);
+    for (const k of ['deint', 'bri', 'con', 'sat', 'sharp', 'gam']) gl.uniform1f(this.u[k], k === 'deint' ? (p.deint ? 1 : 0) : +p[k]);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    return true;
+  }
+}
+let proc = null, grabProc = null, liveVideo = null, procCaptureTracks = [];
+const makeProc = () => { try { return new ImageProc(); } catch (e) { console.warn('Melhoria de imagem desativada:', e.message); return null; } };
+
+function imgPanelSync() {
+  document.querySelectorAll('#imgPanel [data-k]').forEach(i => {
+    const v = settings.img[i.dataset.k];
+    if (i.type === 'checkbox') i.checked = !!v; else { i.value = v; i.nextElementSibling.value = (+v).toFixed(2); }
+  });
+  $('#imgNote').textContent = proc || makeProcOnce() ? 'Aplica-se ao vídeo ao vivo, fotografias e gravações.' : 'Indisponível neste computador (sem WebGL).';
+}
+let procChecked = null;
+const makeProcOnce = () => procChecked ??= !!makeProc();
+$('#btnImg').onclick = () => { $('#imgPanel').hidden = !$('#imgPanel').hidden; imgPanelSync(); };
+$('#imgClose').onclick = () => $('#imgPanel').hidden = true;
+$('#imgReset').onclick = () => { settings.img = {...IMG_DEFAULTS}; saveSettings(); imgPanelSync(); };
+$('#imgPanel').oninput = e => {
+  const k = e.target.dataset.k; if (!k) return;
+  settings.img[k] = e.target.type === 'checkbox' ? e.target.checked : +e.target.value;
+  if (e.target.type !== 'checkbox') e.target.nextElementSibling.value = (+e.target.value).toFixed(2);
+  saveSettings();
+};
 
 // ---------- Câmara ----------
 async function listDevices() {
@@ -684,9 +802,21 @@ async function startLive() {
   const tr = stream.getVideoTracks()[0]?.getSettings() || {};
   $('#liveBadge').textContent = `AO VIVO${tr.width ? ` · ${tr.width}×${tr.height}` : ''}`;
   await listDevices();
-  const st = $('#stage'); st.querySelector('video,img')?.remove();
-  const v = document.createElement('video'); v.id = 'live'; v.muted = true; v.autoplay = true; v.playsInline = true; v.srcObject = stream;
-  st.prepend(v); curMedia = null;
+  const st = $('#stage'); st.querySelector('video,img,canvas')?.remove();
+  const v = liveVideo = document.createElement('video'); v.muted = true; v.autoplay = true; v.playsInline = true; v.srcObject = stream;
+  proc ||= makeProc();
+  let el = v;
+  if (proc) { // mostrar a imagem processada (canvas); o vídeo original fica escondido
+    el = proc.canvas;
+    const draw = () => {
+      if (liveVideo !== v) return;
+      if (v.readyState >= 2) proc.render(v, v.videoWidth, v.videoHeight);
+      v.requestVideoFrameCallback ? v.requestVideoFrameCallback(draw) : requestAnimationFrame(draw);
+    };
+    v.play().catch(() => {}); draw();
+  }
+  el.id = 'live';
+  st.prepend(el); curMedia = null;
   document.querySelectorAll('.thumb.on').forEach(t => t.classList.remove('on'));
   syncStage();
   updateButtons();
@@ -694,6 +824,7 @@ async function startLive() {
 function stopLive() {
   if (recorder) stopRec();
   stream?.getTracks().forEach(t => t.stop()); stream = null;
+  if (liveVideo) { liveVideo.srcObject = null; liveVideo = null; }
   $('#live')?.remove();
   syncStage();
   updateButtons();
@@ -708,7 +839,8 @@ function beep(freq = 880, dur = .08) {
 }
 async function snapshot() {
   const v = $('#live'); if (!v || !curSes) return;
-  const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight;
+  const c = document.createElement('canvas'); c.width = v.videoWidth || v.width; c.height = v.videoHeight || v.height;
+  if (!c.width) return;
   const x = c.getContext('2d'); x.drawImage(v, 0, 0);
   if ($('#oto').checked) { // aplicar máscara circular à imagem guardada
     x.globalCompositeOperation = 'destination-in'; x.beginPath();
@@ -722,9 +854,17 @@ async function snapshot() {
 function startRec() {
   if (!stream || !curSes) return;
   const mime = ['video/webm;codecs=vp9', 'video/webm', 'video/mp4'].find(t => MediaRecorder.isTypeSupported(t));
-  recorder = new MediaRecorder(stream, mime ? {mimeType: mime} : {}); recChunks = [];
+  let recStream = stream, processed = false;
+  if (proc && $('#live') === proc.canvas) { // gravar o vídeo melhorado + áudio original
+    procCaptureTracks = proc.canvas.captureStream(25).getVideoTracks();
+    recStream = new MediaStream([...procCaptureTracks, ...stream.getAudioTracks()]); processed = true;
+  }
+  recorder = new MediaRecorder(recStream, {...(mime ? {mimeType: mime} : {}), videoBitsPerSecond: 6e6}); recChunks = [];
   recorder.ondataavailable = e => e.data.size && recChunks.push(e.data);
-  recorder.onstop = () => addMedia(new Blob(recChunks, {type: recorder.mimeType}), 'video').then(() => recorder = null);
+  recorder.onstop = () => {
+    procCaptureTracks.forEach(t => t.stop()); procCaptureTracks = [];
+    addMedia(new Blob(recChunks, {type: recorder.mimeType}), 'video', processed ? {processed: true} : {}).then(() => recorder = null);
+  };
   recorder.start(1000); recStart = Date.now(); beep(660, .15);
   $('#recBadge').style.display = 'block';
   recTimer = setInterval(() => { const s = Math.floor((Date.now() - recStart) / 1000); $('#recBadge').textContent = `● REC ${String(s / 60 | 0).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; }, 500);
@@ -777,7 +917,9 @@ async function grabFrame() {
   if (!v || !curSes) return alert('Abra primeiro um vídeo da sessão (clique na miniatura do vídeo) e pare no frame pretendido.');
   v.pause();
   const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight;
-  c.getContext('2d').drawImage(v, 0, 0);
+  grabProc ||= makeProc();
+  const src = !curMedia?.processed && grabProc && grabProc.render(v, v.videoWidth, v.videoHeight) ? grabProc.canvas : v;
+  c.getContext('2d').drawImage(src, 0, 0);
   const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', settings.jpeg));
   beep(); const f = $('#flash'); f.style.opacity = .5; setTimeout(() => f.style.opacity = 0, 80);
   const keep = curMedia;
@@ -849,6 +991,14 @@ const EXAMS = {
   },
 };
 
+// Relatório em texto livre: texto normal (sem alterações) de cada exame
+const FREE = {
+  'Sinuscopia': 'Fossas nasais com mucosa de coloração e trofismo normais. Septo nasal centrado, sem desvios obstrutivos. Cornetos inferiores e médios de dimensões normais. Meatos médios livres, sem secreções, pólipos ou outras lesões. Recessos esfeno-etmoidais livres bilateralmente. Rinofaringe livre, com orifícios tubários permeáveis e simétricos.',
+  'Rinoscopia posterior': 'Coanas livres e permeáveis, sem hipertrofia da cauda dos cornetos inferiores. Cavum livre, sem tecido adenoideu significativo nem lesões ocupando espaço. Orifícios das trompas de Eustáquio permeáveis e simétricos. Fossetas de Rosenmüller livres. Face posterior do véu do palato sem alterações.',
+  'Laringoscopia': 'Base da língua e valéculas livres. Epiglote de morfologia normal. Pregas ariepiglóticas simétricas; seios piriformes livres, sem estase salivar. Bandas ventriculares sem alterações. Mucosa aritenoideia e região interaritenoideia sem alterações. Pregas vocais de bordo livre regular, nacaradas, sem lesões, com mobilidade mantida e simétrica e encerramento glótico completo. Região subglótica visível sem alterações.',
+  'Estroboscopia': 'Pregas vocais de bordo livre regular, nacaradas, sem lesões, com mobilidade mantida e simétrica.\nAo exame estroboscópico (fonação sustentada de /i/ em frequência e intensidade habituais): encerramento glótico completo; amplitude de vibração normal e simétrica; onda mucosa presente e simétrica bilateralmente; vibração simétrica em fase e periódica; sem segmentos não vibrantes; sem hiperfunção supraglótica.',
+};
+
 // ---------- Editor de relatório ----------
 let rep = null; // relatório em edição: {exam, date, physician, indication, technique, fields, conclusion, recommendations, images:[{id,caption}], cols}
 const imgMedia = () => media.filter(m => m.kind === 'image');
@@ -857,7 +1007,8 @@ function newReport(exam) {
   const E = EXAMS[exam];
   return {exam, date: new Date(curSes.created).toISOString().slice(0, 10), physician: curSes.physician || settings.physicians[0] || '',
     indication: curSes.diagnosis || '', technique: E.technique, conclusion: E.conclusion, recommendations: '',
-    fields: Object.fromEntries(E.fields.map(([k, , d]) => [k, d])), images: [], cols: 3};
+    fields: Object.fromEntries(E.fields.map(([k, , d]) => [k, d])), images: [], cols: 3,
+    mode: settings.repMode?.[exam] || 'structured', freeText: FREE[exam] || ''};
 }
 function openReport() {
   if (!curSes) return;
@@ -876,6 +1027,10 @@ function fillReportForm() {
   $('#repExam').value = rep.exam; $('#repPhys').value = rep.physician; $('#repDate').value = rep.date;
   $('#repInd').value = rep.indication; $('#repTec').value = rep.technique;
   $('#repConc').value = rep.conclusion; $('#repRec').value = rep.recommendations; $('#repCols').value = rep.cols;
+  rep.mode ||= 'structured'; rep.freeText ??= FREE[rep.exam] || '';
+  $('#repFree').value = rep.freeText;
+  document.querySelectorAll('#repMode button').forEach(b => b.classList.toggle('on', b.dataset.m === rep.mode));
+  $('#repFields').hidden = rep.mode === 'free'; $('#repFreeBox').hidden = rep.mode !== 'free';
   $('#repFields').innerHTML = E.fields.map(([k, label, , opts]) => `<div class="fld">
     <div class="lab"><b>${esc(label)}</b>${opts.length ? `<select data-k="${k}"><option value="">+ achado…</option>${opts.map(o => `<option>${esc(o)}</option>`).join('')}</select>` : ''}</div>
     <textarea data-k="${k}" rows="2">${esc(rep.fields[k] ?? '')}</textarea></div>`).join('');
@@ -893,7 +1048,7 @@ function renderRepImgs() {
 function readReportForm() {
   Object.assign(rep, {exam: $('#repExam').value, physician: $('#repPhys').value, date: $('#repDate').value,
     indication: $('#repInd').value, technique: $('#repTec').value, conclusion: $('#repConc').value,
-    recommendations: $('#repRec').value, cols: +$('#repCols').value});
+    recommendations: $('#repRec').value, cols: +$('#repCols').value, freeText: $('#repFree').value});
   $('#repFields').querySelectorAll('textarea').forEach(t => rep.fields[t.dataset.k] = t.value);
   $('#repImgs').querySelectorAll('.ri.on').forEach(d => { const r = rep.images.find(x => x.id === d.dataset.id); if (r) r.caption = d.querySelector('input').value; });
 }
@@ -915,14 +1070,22 @@ $('#repExam').onchange = () => {
   const ex = $('#repExam').value;
   readReportForm(); // (lê o exame novo, mas os campos ainda são os do anterior)
   const fresh = newReport(ex);
-  rep = {...fresh, physician: rep.physician, date: rep.date, indication: rep.indication, recommendations: rep.recommendations, images: rep.images, cols: rep.cols};
+  rep = {...fresh, physician: rep.physician, date: rep.date, indication: rep.indication, recommendations: rep.recommendations, images: rep.images, cols: rep.cols, mode: settings.repMode?.[ex] || rep.mode};
+  fillReportForm();
+};
+$('#repMode').onclick = e => {
+  const m = e.target.closest('button')?.dataset.m; if (!m || m === rep.mode) return;
+  readReportForm(); rep.mode = m;
+  if (m === 'free' && !rep.freeText.trim()) rep.freeText = FREE[rep.exam] || '';
+  (settings.repMode ||= {})[rep.exam] = m; saveSettings(); // lembrar o formato preferido para este exame
   fillReportForm();
 };
 $('#repReset').onclick = () => {
   if (!confirm('Repor os textos do modelo normal? As descrições escritas serão substituídas.')) return;
   readReportForm();
   const fresh = newReport(rep.exam);
-  Object.assign(rep, {fields: fresh.fields, technique: fresh.technique, conclusion: fresh.conclusion});
+  Object.assign(rep, rep.mode === 'free' ? {freeText: fresh.freeText, technique: fresh.technique, conclusion: fresh.conclusion}
+    : {fields: fresh.fields, technique: fresh.technique, conclusion: fresh.conclusion});
   fillReportForm();
 };
 async function saveReport() {
@@ -959,7 +1122,8 @@ function buildPrint() {
     </div>
     ${sec('Indicação clínica', rep.indication)}
     ${sec('Técnica', rep.technique)}
-    <div class="rep-grid">${E.fields.map(([k, label]) => sec(label, rep.fields[k], (rep.fields[k] || '').length > 70 ? 'long' : '')).join('')}</div>
+    ${rep.mode === 'free' ? sec('Descrição', rep.freeText)
+      : `<div class="rep-grid">${E.fields.map(([k, label]) => sec(label, rep.fields[k], (rep.fields[k] || '').length > 70 ? 'long' : '')).join('')}</div>`}
     ${imgs.length ? `<div class="rep-imgs" style="grid-template-columns:repeat(${rep.cols},1fr)">${imgs.map((r, i) =>
       `<figure><img src="${urlFor(r.m)}"><figcaption>Fig. ${i + 1}${r.caption ? ' — ' + esc(r.caption) : ''}</figcaption></figure>`).join('')}</div>` : ''}
     <div class="rep-concl">${sec('Conclusão', rep.conclusion)}${sec('Recomendações', rep.recommendations)}</div>
@@ -1007,6 +1171,13 @@ $('#restoreFile').onchange = async e => {
 $('#btnSettings').onclick = async () => {
   const f = $('#setDlg form');
   let capWas;
+  if (window.desktop?.xionStatus) {
+    const st = await window.desktop.xionStatus();
+    if (st.supported) {
+      $('#xionBox').hidden = false; f.elements.xionOn.checked = st.enabled; showXion(st);
+      for (const k of ['xionA', 'xionB']) { f.elements[k].innerHTML = Object.entries(XION_ACTIONS).map(([v, t]) => `<option value="${v}">${t}</option>`).join(''); f.elements[k].value = settings[k]; }
+    }
+  }
   if (FS) { $('#rootBox').hidden = false; $('#rootPath').value = await FS.root(); $('#capBox').hidden = false; f.elements.capture.value = capWas = await window.desktop.captureMode(); }
   f.elements.physicians.value = settings.physicians.join('\n'); f.elements.jpeg.value = settings.jpeg;
   f.elements.res.value = settings.res; f.elements.sound.checked = settings.sound; f.elements.audio.checked = settings.audio;
@@ -1022,12 +1193,21 @@ $('#btnSettings').onclick = async () => {
     }
     Object.assign(settings, {physicians: f.elements.physicians.value.split('\n').map(s => s.trim()).filter(Boolean),
       jpeg: +f.elements.jpeg.value || .92, res: f.elements.res.value, sound: f.elements.sound.checked, audio: f.elements.audio.checked});
+    if (!$('#xionBox').hidden) {
+      settings.xionA = f.elements.xionA.value; settings.xionB = f.elements.xionB.value;
+      const st = await window.desktop.xionStatus();
+      if (st.enabled !== f.elements.xionOn.checked) window.desktop.xionEnable(f.elements.xionOn.checked);
+    }
     saveSettings(); renderOrg();
     if (FS && f.elements.capture.value !== capWas && confirm('Mudar o modo de captura e reiniciar a app agora?')) { stopLive(); window.desktop.setCaptureMode(f.elements.capture.value); }
   };
   $('#setDlg').showModal();
 };
 
+$('#xionDiag').onclick = async () => {
+  const log = await window.desktop.xionLog();
+  alert('Diagnóstico dos botões da câmara XION\n(prima os botões da câmara e volte a abrir para ver as alterações do registo 1)\n\n' + (log.split('\n').slice(-25).join('\n') || '(sem registos)'));
+};
 if (FS) {
   $('#rootOpen').onclick = () => FS.openFolder('');
   $('#rootChange').onclick = async () => {
@@ -1094,6 +1274,28 @@ $('#btnPedal').onclick = async () => {
   } catch (err) { alert('Não foi possível ligar o pedal: ' + err.message); }
 };
 
+// ---------- Botões da câmara XION (lidos pelo processo principal, ver xion-buttons.js) ----------
+const XION_ACTIONS = {photo: 'Fotografia', record: 'Gravar / parar', none: 'Nada'};
+settings.xionA ||= 'photo'; settings.xionB ||= 'record';
+function camAction(act) {
+  if (act === 'photo') { if (!$('#btnSnap').disabled) snapshot(); else if (vid() && curSes) grabFrame(); }
+  else if (act === 'record') { if (!$('#btnRec').disabled) $('#btnRec').click(); }
+}
+let xionState = null;
+function showXion(st) {
+  xionState = st;
+  if (st.status === 'ligado') $('#pedalState').textContent = 'Botões da câmara ativos';
+  else if (st.status === 'erro') $('#pedalState').textContent = '';
+  const box = $('#xionStatus'); if (box) box.textContent = {ligado: '✔ Ligados — ' + (st.ident || st.detail || ''), 'a procurar': 'A procurar a câmara…', 'sem câmara': 'Câmara XION não encontrada (ligue-a por USB)', erro: '✖ Erro: ' + st.detail, desligado: 'Desligados', parado: 'Parados'}[st.status] || st.status;
+}
+if (window.desktop?.onXion) {
+  window.desktop.onXion(ev => {
+    if (ev.type === 'button') { $('#pedalState').textContent = `Botão ${ev.button} da câmara`; camAction(ev.button === 'A' ? settings.xionA : settings.xionB); }
+    else showXion(ev);
+  });
+  window.desktop.xionStatus().then(showXion).catch(() => {});
+}
+
 // Atalhos: Espaço = fotografia, R = gravar (como o pedal/botão da câmara)
 document.addEventListener('keydown', e => {
   if (e.target.closest('input,textarea,select,dialog')) return;
@@ -1122,6 +1324,7 @@ async function migrateOld() {
   if (FS && !localStorage.getItem('dv-settings')) { // definições da versão anterior
     try { const old = await window.desktop.migratedSettings(); if (old) { settings = {...defaults, ...JSON.parse(old)}; saveSettings(); } } catch {}
   }
+  settings.img = {...IMG_DEFAULTS, ...(settings.img || {})}; settings.xionA ||= 'photo'; settings.xionB ||= 'record';
   try { await DB.open(); }
   catch (e) { alert('Não foi possível abrir a pasta dos exames:\n' + e.message + '\n\nVerifique a ligação à pasta (ex.: rede) em Definições.'); }
   $('#oto').checked = settings.oto; $('#stage').classList.toggle('oto', settings.oto);

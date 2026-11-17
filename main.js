@@ -3,6 +3,7 @@ const { app, BrowserWindow, Menu, dialog, shell, session, ipcMain, protocol } = 
 const path = require('path');
 const fs = require('fs');
 const { Readable } = require('stream');
+const { XionButtons } = require('./xion-buttons');
 
 // Só uma instância aberta de cada vez (a câmara não pode ser partilhada)
 if (!app.requestSingleInstanceLock()) { app.quit(); process.exit(0); }
@@ -185,6 +186,13 @@ async function migrateIfNeeded() {
   saveCfg();
 }
 
+// ---------- Botões da câmara XION (ver xion-buttons.js) ----------
+const xion = new XionButtons(ev => { if (win && !win.isDestroyed()) win.webContents.send('xion', ev); });
+ipcMain.handle('xion:status', () => ({ enabled: cfg.xionButtons !== false, supported: process.platform === 'win32', status: xion.status, detail: xion.detail, ident: xion.ident }));
+ipcMain.handle('xion:log', () => xion.log.join('\n'));
+ipcMain.handle('xion:enable', (_e, on) => { cfg.xionButtons = !!on; saveCfg(); on ? xion.start() : (xion.stop(), xion.setStatus('desligado')); });
+app.on('will-quit', () => xion.stop());
+
 let win;
 function createWindow() {
   win = new BrowserWindow({
@@ -260,6 +268,7 @@ app.whenReady().then(async () => {
 
   await migrateIfNeeded();
   createWindow();
+  if (cfg.xionButtons !== false) xion.start();
 });
 
 app.on('window-all-closed', () => app.quit());
