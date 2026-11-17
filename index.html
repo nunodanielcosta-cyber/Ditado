@@ -17,6 +17,7 @@
   --accent:#27b3c9;--accent-2:#4cc6d8;--accent-ink:#04222a;--accent-soft:#12313a;
   --rec:#ff5b5b;--ok:#3cc98f;--chrome:#071015;--shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);}}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 "Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
 svg.i{width:18px;height:18px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -177,6 +178,30 @@ dialog h3{margin:0 0 16px;font-size:18px}
 .rep-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}
 .rep-grid .long{grid-column:1/-1}
 .rep-sec h4{margin:0 0 2px;font-size:10.5pt;color:#0b6e8a}
+#repBanner{border-radius:9px;padding:8px 12px;font-size:12.5px;margin-bottom:10px}
+.banner.ok{background:color-mix(in srgb,var(--ok) 14%,transparent);border:1px solid color-mix(in srgb,var(--ok) 40%,transparent)}
+.banner.warn{background:color-mix(in srgb,#e0891e 14%,transparent);border:1px solid color-mix(in srgb,#e0891e 40%,transparent)}
+button.ok{background:var(--ok);color:#fff;border-color:var(--ok);font-weight:600}
+button.ok:hover:not(:disabled){color:#fff;filter:brightness(1.08)}
+.tag-draft{font-size:11px;color:#b45309;font-weight:600}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}
+#repFees select{width:100%;max-width:none}
+#repFees .ftab select{width:auto;min-width:90px}
+#repDlg.fees .cols{grid-template-columns:2fr 1fr}
+.fgrid label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
+.ftab{border-collapse:collapse;font-size:12px;width:100%}
+.ftab th{text-align:left;font-weight:600;color:var(--muted);padding:3px 4px;white-space:nowrap}
+.ftab td{padding:2px 3px}.ftab select,.ftab input{font-size:12px;padding:3px 5px}
+.tplf{border:1px solid var(--line);border-radius:10px;padding:8px;display:grid;gap:6px;background:var(--panel2)}
+.tplf label{font-size:11.5px}
+.btnlike{display:inline-flex;align-items:center;border:1px solid var(--line2);border-radius:9px;padding:7px 12px;cursor:pointer;color:var(--ink);font-weight:400;font-size:14px}
+.rep-tab{border-collapse:collapse;width:100%;font-size:8.8pt;margin-top:3px}
+.rep-tab th,.rep-tab td{border:1px solid #c9d3da;padding:3px 5px;text-align:left;vertical-align:top}
+.rep-tab th{background:#f1f5f7}
+.rep-draft{color:#c2410c;font-weight:700;font-size:9pt;letter-spacing:.06em;border:1.5px solid #c2410c;display:inline-block;padding:1px 8px;border-radius:3px}
+.rep-num{float:right;font-size:10pt;color:#333;margin-top:6px}
+.rep-foot{margin-top:14px;border-top:1px solid #ccc;padding-top:4px;font-size:7.8pt;color:#555}
+.sigimg{display:block;max-height:52px;margin:0 auto 2px}
 .seg{display:inline-flex;background:var(--panel2);border:1px solid var(--line2);border-radius:9px;padding:2px}
 .seg button{border:0;background:transparent;padding:5px 11px;border-radius:7px;font-size:13px}
 .seg button.on{background:var(--accent);color:var(--accent-ink);font-weight:600}
@@ -288,6 +313,8 @@ dialog.wide{max-width:1100px}
   <section class="panel" id="work">
     <div class="ctx">
       <div class="who"><span id="title">Nenhum doente selecionado</span><span id="subtitle"></span></div>
+      <button id="btnEditPat" class="ghost" hidden title="Editar ou apagar o doente"><svg class="i"><use href="#i-edit"/></svg>Doente</button>
+      <button id="btnEditSes" class="ghost" hidden title="Editar ou apagar este exame"><svg class="i"><use href="#i-edit"/></svg>Exame</button>
       <select id="device" title="Câmara / placa de captura"></select>
       <button id="btnLive"><svg class="i"><use href="#i-power"/></svg>Ligar câmara</button>
     </div>
@@ -386,14 +413,16 @@ dialog.wide{max-width:1100px}
 </form></dialog>
 
 <dialog id="sesDlg"><form method="dialog">
-  <h3>Nova sessão</h3>
+  <h3 id="sesDlgTitle">Novo exame</h3>
   <div class="form">
     <label>Tipo<select name="type"><option>Sinuscopia</option><option>Rinoscopia posterior</option><option>Laringoscopia</option><option>Estroboscopia</option><option>Otoscopia</option><option>Endoscopia</option><option>Documentação fotográfica</option><option>Outro</option></select></label>
     <label>Médico<select name="physician"></select></label>
     <label class="full">Diagnóstico<input name="diagnosis"></label>
     <label class="full">Notas / ditado<textarea name="notes" rows="4"></textarea></label>
   </div>
-  <div class="row" style="margin-top:14px;justify-content:flex-end"><button value="cancel" formnovalidate>Cancelar</button><button class="pri" value="ok">Guardar</button></div>
+  <div class="row" style="margin-top:14px;justify-content:space-between">
+    <button type="button" id="sesDel" class="ghost" style="color:var(--rec)"><svg class="i"><use href="#i-trash"/></svg>Apagar exame</button>
+    <span class="row"><button value="cancel" formnovalidate>Cancelar</button><button class="pri" value="ok">Guardar</button></span></div>
 </form></dialog>
 
 <dialog id="setDlg"><form method="dialog">
@@ -407,10 +436,16 @@ dialog.wide{max-width:1100px}
     <label class="full" id="capBox" hidden>Modo de captura de vídeo (a app reinicia ao mudar)<select name="capture">
       <option value="ds">DirectShow — recomendado (como no DiVAS)</option>
       <option value="mf">Media Foundation — webcams USB recentes</option></select></label>
+    <div class="full"><div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px">Relatórios</div>
+      <button type="button" id="btnTemplates"><svg class="i"><use href="#i-report"/></svg>Editar modelos de relatório…</button></div>
+    <div class="full"><div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px">Assinatura digitalizada (aparece nos relatórios finalizados)</div>
+      <div class="row" style="flex-wrap:nowrap"><select id="sigWho" style="flex:1"></select><span id="sigPrev" style="min-width:90px"></span>
+      <label style="display:inline-flex;flex-direction:row"><input type="file" id="sigFile" accept="image/*" hidden><span class="btnlike">Carregar…</span></label><button type="button" id="sigDel" class="ghost icon" title="Retirar">✕</button></div></div>
     <div class="full" id="xionBox" hidden><div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px">Botões da câmara XION</div>
       <div class="row" style="flex-wrap:nowrap"><label class="chk" style="font-weight:400;color:var(--ink);font-size:13.5px;flex-direction:row;display:flex;gap:6px;align-items:center"><input type="checkbox" name="xionOn"> Ativos</label>
         <span class="muted" id="xionStatus" style="font-size:12px;flex:1"></span><button type="button" id="xionDiag">Diagnóstico</button></div>
-      <div class="row" style="margin-top:6px;flex-wrap:nowrap"><label style="flex:1">Botão A<select name="xionA"></select></label><label style="flex:1">Botão B<select name="xionB"></select></label></div></div>
+      <div id="xionKeys" style="margin-top:6px;font-size:13px"></div>
+      <div class="muted" style="font-size:11.5px;margin-top:4px">Se um botão não funcionar: clique em "Ensinar" e prima esse botão na câmara.</div></div>
     <div class="full" id="rootBox" hidden><div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px">Pasta dos exames (local ou de rede)</div>
       <div class="row" style="flex-wrap:nowrap"><input id="rootPath" readonly style="flex:1">
       <button type="button" id="rootChange">Alterar…</button><button type="button" id="rootOpen" class="icon" title="Abrir pasta"><svg class="i"><use href="#i-folder"/></svg></button></div></div>
@@ -434,8 +469,10 @@ dialog.wide{max-width:1100px}
     <div>
       <div class="fld"><div class="lab"><b>Indicação clínica / motivo do exame</b></div><textarea id="repInd" rows="2"></textarea></div>
       <div class="fld"><div class="lab"><b>Técnica</b></div><textarea id="repTec" rows="2"></textarea></div>
+      <div id="repBanner" hidden></div>
       <div id="repFields"></div>
       <div class="fld" id="repFreeBox" hidden><div class="lab"><b>Descrição do exame</b><span>texto livre — já com o relatório normal; altere o que for preciso</span></div><textarea id="repFree" rows="14"></textarea></div>
+      <div class="fld" id="repFees" hidden></div>
       <div class="fld"><div class="lab"><b>Medições (voz / estroboscopia retrospetiva)</b><button type="button" id="repMeasIns" style="font-size:12px;padding:3px 8px">Inserir medições da sessão</button></div><textarea id="repMeas" rows="2" placeholder="Opcional — use o painel Voz e a ferramenta Estroboscopia"></textarea></div>
       <div class="fld"><div class="lab"><b>Conclusão</b></div><textarea id="repConc" rows="3"></textarea></div>
       <div class="fld"><div class="lab"><b>Recomendações / plano</b></div><textarea id="repRec" rows="2"></textarea></div>
@@ -453,7 +490,9 @@ dialog.wide{max-width:1100px}
     <button type="button" id="repReset">Repor modelo normal</button>
     <span style="flex:1"></span>
     <button type="button" id="repClose">Fechar</button>
-    <button type="button" id="repSave">Guardar</button>
+    <button type="button" id="repSave">Guardar rascunho</button>
+    <button type="button" id="repReopen" hidden>Reabrir (nova versão)</button>
+    <button type="button" id="repFinal" class="ok">Finalizar e assinar</button>
     <button type="button" id="repPrint">Imprimir</button>
     <button type="button" id="repPdf" class="pri">Guardar PDF</button>
   </div>
@@ -489,9 +528,32 @@ dialog.wide{max-width:1100px}
   </div>
 </form></dialog>
 
+<dialog id="tplDlg" class="wide"><form method="dialog" onsubmit="return false">
+  <div class="row" style="margin-bottom:10px"><h3 style="margin:0;flex:1">Modelos de relatório</h3>
+    <select id="tplExam" style="width:auto"></select><button type="button" id="tplNew">+ Novo tipo de exame</button></div>
+  <div class="muted" id="tplState" style="font-size:12.5px;margin-bottom:10px"></div>
+  <div style="display:grid;grid-template-columns:1fr 1.3fr;gap:16px;max-height:calc(100vh - 230px);overflow:auto">
+    <div class="form" style="grid-template-columns:1fr;align-content:start">
+      <label>Título no relatório<input id="tplTitle"></label>
+      <label>Técnica<textarea id="tplTech" rows="3"></textarea></label>
+      <label>Conclusão normal<textarea id="tplConc" rows="3"></textarea></label>
+      <label>Relatório em texto livre — texto normal<textarea id="tplFree" rows="8"></textarea></label>
+    </div>
+    <div><div class="row" style="margin-bottom:6px"><b style="flex:1">Campos do relatório estruturado</b><button type="button" id="tplAddField">+ Campo</button></div><div id="tplFields" class="form" style="grid-template-columns:1fr"></div></div>
+  </div>
+  <div class="row" style="margin-top:12px"><button type="button" id="tplReset" class="ghost">Repor original</button><button type="button" id="tplDelete" class="ghost" style="color:var(--rec)">Apagar modelo</button>
+    <span style="flex:1"></span><button type="button" id="tplClose">Fechar</button><button type="button" id="tplSave" class="pri">Guardar modelo</button></div>
+</form></dialog>
+
+<dialog id="askDlg"><form method="dialog">
+  <p id="askMsg" style="white-space:pre-line;margin:0 0 10px"></p><input id="askInput" autocomplete="off">
+  <div class="row" style="margin-top:14px;justify-content:flex-end"><button value="cancel" formnovalidate>Cancelar</button><button class="pri" value="ok">OK</button></div>
+</form></dialog>
+
 <div id="printArea"></div>
 
 <script>
+let scriptsReady; const scriptsLoaded = new Promise(r => scriptsReady = r); // os módulos (voice.js, fees.js…) carregam depois deste script
 // ---------- Armazenamento ----------
 // Versão browser: IndexedDB. Versão de computador (.exe): ficheiros normais numa pasta (ver FileDB).
 const IDB = (() => {
@@ -584,6 +646,14 @@ const FileDB = (() => {
   };
 })();
 const DB = FS ? FileDB : IDB;
+// Pedir um texto ao utilizador (substitui window.prompt, que o Electron não suporta). Devolve null se cancelar.
+function askText(msg, def = '') {
+  return new Promise(res => {
+    const d = $('#askDlg'); $('#askMsg').textContent = msg; $('#askInput').value = def;
+    d.onclose = () => res(d.returnValue === 'ok' ? $('#askInput').value : null);
+    d.returnValue = ''; d.showModal(); $('#askInput').focus();
+  });
+}
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -616,7 +686,7 @@ async function loadPatients() {
 }
 const initials = p => ((p.given || '')[0] || '') + ((p.surname || '')[0] || '');
 const avColor = p => { let h = 0; for (const c of p.id) h = (h * 31 + c.charCodeAt(0)) % 360; return `hsl(${h} 45% 42%)`; };
-const EXAM_COLORS = {'Sinuscopia': '#2f8fd8', 'Rinoscopia posterior': '#8a63d2', 'Laringoscopia': '#10a38a', 'Estroboscopia': '#e0891e', 'Otoscopia': '#d4577a'};
+const EXAM_COLORS = {'Sinuscopia': '#2f8fd8', 'Rinoscopia posterior': '#8a63d2', 'Laringoscopia': '#10a38a', 'Estroboscopia': '#e0891e', 'Otoscopia': '#d4577a', 'Videoendoscopia da deglutição': '#b45309'};
 const badge = t => `<span class="badge" style="--c:${EXAM_COLORS[t] || '#7d8b95'}">${esc(t)}</span>`;
 function renderPatients() {
   const q = $('#search').value.trim().toLowerCase();
@@ -675,8 +745,12 @@ function editPatient(p) {
 }
 $('#btnNewPat').onclick = () => editPatient(null);
 $('#patDel').onclick = async () => {
-  if (!curPat || !confirm(`Apagar ${curPat.surname}, ${curPat.given} e todas as sessões/imagens?`)) return;
+  if (!curPat) return;
+  const ses = await DB.by('sessions', 'pat', curPat.id), fin = ses.filter(x => x.report?.status === 'final');
+  if (!confirm(`Apagar o doente ${curPat.surname}, ${curPat.given} (processo ${curPat.pid || '—'})${ses.length ? ` com ${ses.length} exame(s) e todas as imagens, vídeos e relatórios` : ''}?\n\nEsta ação não pode ser desfeita.`)) return;
+  if (fin.length && await askText(`Este doente tem ${fin.length} relatório(s) finalizado(s). Para confirmar, escreva o n.º de processo (${curPat.pid}):`) !== String(curPat.pid)) return alert('Número não confere — o doente não foi apagado.');
   $('#patDlg').close('cancel');
+  stopLive(); $('#stage').querySelector('img,video,canvas')?.remove(); curMedia = null; syncStage();
   for (const s of await DB.by('sessions', 'pat', curPat.id)) await deleteSession(s.id);
   await DB.del('patients', curPat.id);
   curPat = null; await loadPatients(); await loadSessions();
@@ -694,11 +768,12 @@ async function loadSessions(keepList) {
   $('#sesCount').textContent = sessions.length;
   if (keepList) document.querySelectorAll('#sesList .item').forEach(i => i.classList.toggle('on', i.dataset.id === curSes?.id));
   else $('#sesList').innerHTML = sessions.map(s => `<div class="item ${s.id === curSes?.id ? 'on' : ''}" data-id="${s.id}" title="Duplo clique para editar">
-    <div class="txt"><div class="row" style="gap:6px;flex-wrap:nowrap">${badge(s.type)}${s.report ? '<span class="tag-ok"><svg class="i" style="width:13px;height:13px"><use href="#i-check"/></svg>Relatório</span>' : ''}</div>
+    <div class="txt"><div class="row" style="gap:6px;flex-wrap:nowrap">${badge(s.type)}${s.report ? (s.report.status === 'final' ? `<span class="tag-ok"><svg class="i" style="width:13px;height:13px"><use href="#i-check"/></svg>${esc(s.report.number || 'Relatório')}</span>` : '<span class="tag-draft">Rascunho</span>') : ''}</div>
     <small style="margin-top:3px">${fmtDT(s.created)}${s.physician ? ' · ' + esc(s.physician) : ''}</small>
     ${s.diagnosis ? `<small>${esc(s.diagnosis)}</small>` : ''}</div></div>`).join('')
     || `<div class="empty-list">${curPat ? 'Sem sessões.<br>Clique em <b>Nova</b> para iniciar um exame.' : 'Selecione um doente.'}</div>`;
   $('#title').textContent = curPat ? `${curPat.surname}, ${curPat.given}` : 'Nenhum doente selecionado';
+  $('#btnEditPat').hidden = !curPat; $('#btnEditSes').hidden = !curSes;
   $('#subtitle').innerHTML = curPat ? (curSes ? `${badge(curSes.type)} ${fmtDT(curSes.created)}${curSes.physician ? ' · ' + esc(curSes.physician) : ''}`
     : [curPat.pid ? 'Proc. ' + esc(curPat.pid) : '', curPat.birth ? age(curPat.birth, Date.now()) : '', 'selecione ou crie uma sessão'].filter(Boolean).join(' · ')) : 'Escolha um doente na lista à esquerda';
   await loadMedia();
@@ -709,7 +784,20 @@ $('#sesList').ondblclick = e => { const it = e.target.closest('.item'); if (it) 
 function editSession(s) {
   const f = $('#sesDlg form'); f.reset();
   f.elements.physician.innerHTML = settings.physicians.map(x => `<option>${esc(x)}</option>`).join('');
+  if (s && ![...f.elements.type.options].some(o => o.value === s.type)) f.elements.type.add(new Option(s.type));
   if (s) for (const k of ['type', 'physician', 'diagnosis', 'notes']) f.elements[k].value = s[k] || '';
+  $('#sesDlgTitle').textContent = s ? 'Editar exame' : 'Novo exame';
+  $('#sesDel').style.visibility = s ? 'visible' : 'hidden';
+  $('#sesDel').onclick = async () => {
+    const n = media.length, r = s.report;
+    let msg = `Apagar o exame "${s.type}" de ${fmtDT(s.created)}${n ? ` e os seus ${n} ficheiros (imagens/vídeos)` : ''}?`;
+    if (r?.status === 'final') msg += `\n\nATENÇÃO: este exame tem o relatório finalizado n.º ${r.number}.`;
+    if (!confirm(msg + '\n\nEsta ação não pode ser desfeita.')) return;
+    if (r?.status === 'final' && await askText(`Para confirmar, escreva o n.º do relatório (${r.number}):`) !== r.number) return alert('Número não confere — o exame não foi apagado.');
+    $('#sesDlg').close('cancel');
+    stopLive(); $('#stage').querySelector('img,video,canvas')?.remove(); curMedia = null; syncStage();
+    await deleteSession(s.id); curSes = null; selected.clear(); await loadSessions();
+  };
   $('#sesDlg').onclose = async () => {
     if ($('#sesDlg').returnValue !== 'ok') return;
     const data = Object.fromEntries(new FormData(f));
@@ -727,6 +815,8 @@ async function deleteSession(id) {
   await DB.del('sessions', id);
 }
 $('#btnNewSession').onclick = () => editSession(null);
+$('#btnEditSes').onclick = () => curSes && editSession(curSes);
+$('#btnEditPat').onclick = () => curPat && editPatient(curPat);
 
 // ---------- Média ----------
 async function loadMedia() {
@@ -863,10 +953,11 @@ class ImageProc {
   render(src, w, h, p = settings.img, live = false) {
     const gl = this.gl, c = this.canvas;
     if (!w || !h) return false;
+    const useHist = live && +p.denoise > 0.01 && this.ensureHistory(w, h);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.src);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
     let input = this.src;
-    if (live && +p.denoise > 0.01 && this.ensureHistory(w, h)) {
+    if (useHist) {
       const next = 1 - this.cur, prev = this.histOk ? this.hist[this.cur] : this.src;
       this.use(this.dn);
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.fb[next]); gl.viewport(0, 0, w, h);
@@ -996,7 +1087,9 @@ async function snapshot() {
 }
 function startRec() {
   if (!stream || !curSes) return;
-  const mime = ['video/webm;codecs=vp9', 'video/webm', 'video/mp4'].find(t => MediaRecorder.isTypeSupported(t));
+  // MP4 (H.264) abre em qualquer programa; com som, o áudio fica em Opus (o AAC não está disponível). Recurso: WebM.
+  const withAudio = stream.getAudioTracks().length > 0;
+  const mime = [withAudio ? 'video/mp4;codecs=avc1,opus' : 'video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(t => MediaRecorder.isTypeSupported(t));
   let recStream = stream, processed = false;
   if (proc && $('#live') === proc.canvas) { // gravar o vídeo melhorado + áudio original
     procCaptureTracks = proc.canvas.captureStream(25).getVideoTracks();
@@ -1079,7 +1172,7 @@ const PV_OPTS = ['Nódulos vocais bilaterais na junção do 1/3 anterior com o 1
 const FN_OPTS = ['Mucosa edemaciada e hiperemiada.', 'Hipertrofia do corneto inferior.', 'Concha bolhosa do corneto médio.',
   'Secreções mucopurulentas no meato médio.', 'Pólipos no meato médio.', 'Polipose nasossinusal que ultrapassa o corneto médio.',
   'Crostas e mucosa atrófica.', 'Lesão de aspeto suspeito — a esclarecer com biópsia.'];
-const EXAMS = {
+const EXAMS_DEFAULT = {
   'Sinuscopia': {
     title: 'Sinuscopia (endoscopia nasossinusal)',
     technique: 'Endoscópio rígido de 0º/30º, após anestesia tópica e vasoconstrição da mucosa nasal.',
@@ -1133,15 +1226,29 @@ const EXAMS = {
     ],
     conclusion: 'Videolaringoestroboscopia sem alterações do padrão vibratório.',
   },
+  'Videoendoscopia da deglutição': {
+    title: 'Videoendoscopia da deglutição (FEES)',
+    technique: 'Nasofibrolaringoscópio flexível por via nasal, sem anestesia tópica, com o doente sentado. Bolos corados com corante alimentar, de diferentes consistências (IDDSI).',
+    fees: true,
+    fields: [
+      ['anat', 'Avaliação anatómica', 'Fossas nasais permeáveis. Rinofaringe sem alterações, com encerramento velofaríngeo competente. Base da língua, valéculas e seios piriformes sem alterações estruturais. Laringe sem alterações estruturais.',
+        ['Estase salivar nas valéculas e seios piriformes.', 'Assimetria da faringe.', 'Hipertrofia da amígdala lingual.', 'Osteófito cervical com abaulamento da parede posterior da faringe.']],
+      ['obs', 'Observações', '', ['Manobra de queixo ao peito eficaz.', 'Deglutição múltipla eficaz na limpeza dos resíduos.', 'Rotação da cabeça para o lado parético eficaz.', 'Fadiga ao longo do exame.']],
+    ],
+    conclusion: 'Deglutição orofaríngea sem alterações significativas: sem penetração nem aspiração (PAS 1) com todas as consistências testadas, sem resíduos significativos.',
+  },
 };
+let EXAMS = structuredClone(EXAMS_DEFAULT); // com as alterações feitas pelo serviço (ver templates.js)
 
 // Relatório em texto livre: texto normal (sem alterações) de cada exame
-const FREE = {
+const FREE_DEFAULT = {
   'Sinuscopia': 'Fossas nasais com mucosa de coloração e trofismo normais. Septo nasal centrado, sem desvios obstrutivos. Cornetos inferiores e médios de dimensões normais. Meatos médios livres, sem secreções, pólipos ou outras lesões. Recessos esfeno-etmoidais livres bilateralmente. Rinofaringe livre, com orifícios tubários permeáveis e simétricos.',
   'Rinoscopia posterior': 'Coanas livres e permeáveis, sem hipertrofia da cauda dos cornetos inferiores. Cavum livre, sem tecido adenoideu significativo nem lesões ocupando espaço. Orifícios das trompas de Eustáquio permeáveis e simétricos. Fossetas de Rosenmüller livres. Face posterior do véu do palato sem alterações.',
   'Laringoscopia': 'Base da língua e valéculas livres. Epiglote de morfologia normal. Pregas ariepiglóticas simétricas; seios piriformes livres, sem estase salivar. Bandas ventriculares sem alterações. Mucosa aritenoideia e região interaritenoideia sem alterações. Pregas vocais de bordo livre regular, nacaradas, sem lesões, com mobilidade mantida e simétrica e encerramento glótico completo. Região subglótica visível sem alterações.',
+  'Videoendoscopia da deglutição': 'Fossas nasais permeáveis. Rinofaringe sem alterações, com encerramento velofaríngeo competente. Base da língua, valéculas e seios piriformes sem alterações estruturais; sem estase salivar. Laringe sem alterações estruturais, com mobilidade das pregas vocais mantida e simétrica e sensibilidade laríngea presente. Deglutição de bolos de diferentes consistências sem escape prematuro, sem penetração nem aspiração e sem resíduos significativos.',
   'Estroboscopia': 'Pregas vocais de bordo livre regular, nacaradas, sem lesões, com mobilidade mantida e simétrica.\nAo exame estroboscópico (fonação sustentada de /i/ em frequência e intensidade habituais): encerramento glótico completo; amplitude de vibração normal e simétrica; onda mucosa presente e simétrica bilateralmente; vibração simétrica em fase e periódica; sem segmentos não vibrantes; sem hiperfunção supraglótica.',
 };
+let FREE = {...FREE_DEFAULT};
 
 // ---------- Editor de relatório ----------
 let rep = null; // relatório em edição: {exam, date, physician, indication, technique, fields, conclusion, recommendations, images:[{id,caption}], cols}
@@ -1157,6 +1264,7 @@ function newReport(exam) {
 function openReport() {
   if (!curSes) return;
   const exam = EXAMS[curSes.type] ? curSes.type : 'Laringoscopia';
+  if (curSes.report && !EXAMS[curSes.report.exam] && !isFinal(curSes.report)) curSes.report.exam = exam; // modelo apagado
   rep = curSes.report ? structuredClone(curSes.report) : newReport(exam);
   // por omissão, incluir as imagens que estão selecionadas na barra de miniaturas
   if (!curSes.report && selected.size) rep.images = imgMedia().filter(m => selected.has(m.id)).map(m => ({id: m.id, caption: ''}));
@@ -1179,6 +1287,8 @@ function fillReportForm() {
     <div class="lab"><b>${esc(label)}</b>${opts.length ? `<select data-k="${k}"><option value="">+ achado…</option>${opts.map(o => `<option>${esc(o)}</option>`).join('')}</select>` : ''}</div>
     <textarea data-k="${k}" rows="2">${esc(rep.fields[k] ?? '')}</textarea></div>`).join('');
   renderRepImgs();
+  feesFill(rep);
+  signoffApply();
 }
 function renderRepImgs() {
   const imgs = imgMedia();
@@ -1194,10 +1304,11 @@ function readReportForm() {
     indication: $('#repInd').value, technique: $('#repTec').value, conclusion: $('#repConc').value,
     recommendations: $('#repRec').value, cols: +$('#repCols').value, freeText: $('#repFree').value, meas: $('#repMeas').value});
   $('#repFields').querySelectorAll('textarea').forEach(t => rep.fields[t.dataset.k] = t.value);
+  feesRead(rep);
   $('#repImgs').querySelectorAll('.ri.on').forEach(d => { const r = rep.images.find(x => x.id === d.dataset.id); if (r) r.caption = d.querySelector('input').value; });
 }
 $('#repImgs').onclick = e => {
-  if (e.target.tagName !== 'IMG') return;
+  if (e.target.tagName !== 'IMG' || isFinal(rep)) return;
   readReportForm();
   const id = e.target.closest('.ri').dataset.id, i = rep.images.findIndex(x => x.id === id);
   i >= 0 ? rep.images.splice(i, 1) : rep.images.push({id, caption: ''});
@@ -1238,13 +1349,14 @@ $('#repReset').onclick = () => {
   fillReportForm();
 };
 async function saveReport() {
+  if (isFinal(rep)) return; // finalizado: não se altera (usar "Reabrir")
   readReportForm();
   rep.updated = Date.now();
   curSes.report = structuredClone(rep);
   await DB.put('sessions', curSes);
   await loadSessions();
 }
-$('#repSave').onclick = async () => { await saveReport(); $('#repSave').textContent = 'Guardado ✓'; setTimeout(() => $('#repSave').textContent = 'Guardar', 1200); };
+$('#repSave').onclick = async () => { await saveReport(); $('#repSave').textContent = 'Guardado ✓'; setTimeout(() => $('#repSave').textContent = 'Guardar rascunho', 1200); };
 $('#repClose').onclick = () => $('#repDlg').close();
 
 function age(birth, at) {
@@ -1254,13 +1366,14 @@ function age(birth, at) {
   return a + ' anos';
 }
 function buildPrint() {
-  const E = EXAMS[rep.exam], P = curPat;
+  const E = rep.tpl && isFinal(rep) ? {title: rep.tpl.title, fields: rep.tpl.fields} : EXAMS[rep.exam] || {title: rep.exam, fields: []}, P = curPat;
   const imgs = rep.images.map(r => ({...r, m: media.find(m => m.id === r.id)})).filter(r => r.m);
   const sec = (t, v, cls = '') => v && v.trim() ? `<div class="rep-sec ${cls}"><h4>${esc(t)}</h4><p>${esc(v.trim())}</p></div>` : '';
   $('#printArea').innerHTML = `
     <div class="rep-head">${settings.logo || bundledLogo ? `<img src="${settings.logo || bundledLogo}">` : ''}
       <div class="clinic"><b>${esc(settings.clinic || defaults.clinic)}</b><div class="svc">${esc(settings.service || defaults.service)}</div>${settings.clinicInfo ? `<div class="info">${esc(settings.clinicInfo)}</div>` : ''}</div></div>
-    <div class="rep-title">Relatório de ${esc(E.title)}</div>
+    ${isFinal(rep) ? '' : '<div class="rep-draft">RASCUNHO — relatório não finalizado</div>'}
+    <div class="rep-title">Relatório de ${esc(E.title)}${rep.number ? `<span class="rep-num">n.º ${esc(rep.number)}${rep.version > 1 ? ' · v' + rep.version : ''}</span>` : ''}</div>
     <div class="rep-pat">
       <div><b>Doente:</b> ${esc(P.surname)}, ${esc(P.given)}</div>
       <div><b>N.º processo:</b> ${esc(P.pid || '—')}</div>
@@ -1273,14 +1386,15 @@ function buildPrint() {
     ${sec('Técnica', rep.technique)}
     ${rep.mode === 'free' ? sec('Descrição', rep.freeText)
       : `<div class="rep-grid">${E.fields.map(([k, label]) => sec(label, rep.fields[k], (rep.fields[k] || '').length > 70 ? 'long' : '')).join('')}</div>`}
+    ${feesPrintHTML(rep)}
     ${imgs.length ? `<div class="rep-imgs" style="grid-template-columns:repeat(${rep.cols},1fr)">${imgs.map((r, i) =>
       `<figure><img src="${urlFor(r.m)}"><figcaption>Fig. ${i + 1}${r.caption ? ' — ' + esc(r.caption) : ''}</figcaption></figure>`).join('')}</div>` : ''}
     ${sec('Medições', rep.meas)}
     <div class="rep-concl">${sec('Conclusão', rep.conclusion)}${sec('Recomendações', rep.recommendations)}</div>
-    <div class="rep-sign"><div>${esc(rep.physician)}</div></div>`;
+    ${signoffPrintHTML()}`;
   return Promise.all([...$('#printArea').querySelectorAll('img')].map(i => i.decode().catch(() => {})));
 }
-const reportFileName = () => `Relatorio_${rep.exam.replace(/\s+/g, '-')}_${(curPat.surname + '_' + curPat.given).replace(/[^\p{L}\d]+/gu, '_')}_${rep.date}`;
+const reportFileName = () => `Relatorio_${rep.number ? rep.number + (rep.version > 1 ? '-v' + rep.version : '') + '_' : ''}${rep.exam.replace(/\s+/g, '-')}_${(curPat.surname + '_' + curPat.given).replace(/[^\p{L}\d]+/gu, '_')}_${rep.date}`;
 async function printing(fn) { $('#repDlg').close(); try { await fn(); } finally { $('#repDlg').showModal(); } }
 $('#repPrint').onclick = async () => { await saveReport(); await buildPrint(); await printing(() => print()); };
 $('#repPdf').onclick = async () => {
@@ -1321,11 +1435,12 @@ $('#restoreFile').onchange = async e => {
 $('#btnSettings').onclick = async () => {
   const f = $('#setDlg form');
   let capWas;
+  sigRender();
   if (window.desktop?.xionStatus) {
     const st = await window.desktop.xionStatus();
     if (st.supported) {
       $('#xionBox').hidden = false; f.elements.xionOn.checked = st.enabled; showXion(st);
-      for (const k of ['xionA', 'xionB']) { f.elements[k].innerHTML = Object.entries(XION_ACTIONS).map(([v, t]) => `<option value="${v}">${t}</option>`).join(''); f.elements[k].value = settings[k]; }
+      renderXionKeys();
     }
   }
   if (FS) { $('#rootBox').hidden = false; $('#rootPath').value = await FS.root(); $('#capBox').hidden = false; f.elements.capture.value = capWas = await window.desktop.captureMode(); }
@@ -1344,7 +1459,6 @@ $('#btnSettings').onclick = async () => {
     Object.assign(settings, {physicians: f.elements.physicians.value.split('\n').map(s => s.trim()).filter(Boolean),
       jpeg: +f.elements.jpeg.value || .92, res: f.elements.res.value, sound: f.elements.sound.checked, audio: f.elements.audio.checked});
     if (!$('#xionBox').hidden) {
-      settings.xionA = f.elements.xionA.value; settings.xionB = f.elements.xionB.value;
       const st = await window.desktop.xionStatus();
       if (st.enabled !== f.elements.xionOn.checked) window.desktop.xionEnable(f.elements.xionOn.checked);
     }
@@ -1364,7 +1478,7 @@ if (FS) {
     const dir = await FS.chooseRoot(); if (!dir) return;
     const copy = confirm(`Nova pasta dos exames:\n${dir}\n\nCopiar os exames atuais para lá?\n(OK = copiar · Cancelar = usar a pasta como está, por exemplo uma pasta de rede que já tem exames)`);
     await FS.setRoot(dir, copy); $('#rootPath').value = dir;
-    curPat = curSes = curMedia = null; await DB.open(); await loadPatients(); await loadSessions();
+    curPat = curSes = curMedia = null; await DB.open(); await loadTemplates(); await loadPatients(); await loadSessions();
   };
 }
 $('#btnFolder').onclick = () => FS && curSes && FS.openFolder(DB.sessionRel(curSes));
@@ -1425,8 +1539,41 @@ $('#btnPedal').onclick = async () => {
 };
 
 // ---------- Botões da câmara XION (lidos pelo processo principal, ver xion-buttons.js) ----------
-const XION_ACTIONS = {photo: 'Fotografia', record: 'Gravar / parar', none: 'Nada'};
-settings.xionA ||= 'photo'; settings.xionB ||= 'record';
+// Cada ação está ligada a um bit de um registo do chip (e ao valor desse bit quando o botão está premido).
+// Por omissão (como no DiVAS): registo 1, bit 0x02 = fotografia; bit 0x01 = gravar; 0 = premido.
+const XION_DEFAULT_KEYS = {photo: {reg: 1, bit: 0x02, on: 0}, record: {reg: 1, bit: 0x01, on: 0}};
+const XION_LABEL = {photo: 'Fotografia', record: 'Gravar / parar'};
+settings.xionKeys = {...XION_DEFAULT_KEYS, ...(settings.xionKeys || {})};
+let xionLearn = null; // ação à espera de "ensino"
+function renderXionKeys() {
+  $('#xionKeys').innerHTML = Object.entries(XION_LABEL).map(([act, label]) => {
+    const k = settings.xionKeys[act];
+    return `<div class="row" style="flex-wrap:nowrap;margin:3px 0"><b style="width:110px">${label}</b>
+      <span class="muted" style="flex:1;font-size:12px">${xionLearn === act ? '<b style="color:var(--accent)">Prima agora o botão na câmara…</b>' : k ? `registo ${k.reg} · bit 0x${k.bit.toString(16)}` : 'sem botão'}</span>
+      <button type="button" data-learn="${act}">Ensinar</button><button type="button" data-clear="${act}" class="ghost" title="Sem botão">✕</button></div>`;
+  }).join('') + '<button type="button" class="ghost" data-reset="1" style="font-size:12px;padding:3px 8px">Repor botões originais</button>';
+}
+$('#xionKeys').onclick = e => {
+  const l = e.target.dataset.learn, c = e.target.dataset.clear;
+  if (l) { xionLearn = l; renderXionKeys(); setTimeout(() => { if (xionLearn === l) { xionLearn = null; renderXionKeys(); } }, 15000); }
+  if (c) { settings.xionKeys[c] = null; saveSettings(); renderXionKeys(); }
+  if (e.target.dataset.reset) { settings.xionKeys = structuredClone(XION_DEFAULT_KEYS); saveSettings(); renderXionKeys(); }
+};
+function xionChange(ev) {
+  // modo "ensinar": o primeiro bit que muda passa a ser o botão desta ação (o valor novo = premido)
+  if (xionLearn) {
+    const bit = ev.diff & -ev.diff;
+    settings.xionKeys[xionLearn] = {reg: ev.reg, bit, on: ev.val & bit ? 1 : 0};
+    for (const a of Object.keys(XION_LABEL)) if (a !== xionLearn && settings.xionKeys[a]?.reg === ev.reg && settings.xionKeys[a]?.bit === bit) settings.xionKeys[a] = null;
+    xionLearn = null; saveSettings(); renderXionKeys(); beep(990, .08);
+    return;
+  }
+  for (const [act, k] of Object.entries(settings.xionKeys)) {
+    if (!k || k.reg !== ev.reg || !(ev.diff & k.bit)) continue;
+    const pressed = (ev.val & k.bit ? 1 : 0) === k.on;
+    if (pressed) { $('#pedalState').textContent = `Botão da câmara: ${XION_LABEL[act]}`; camAction(act); }
+  }
+}
 function camAction(act) {
   if (act === 'photo') { if (!$('#btnSnap').disabled) snapshot(); else if (vid() && curSes) grabFrame(); }
   else if (act === 'record') { if (!$('#btnRec').disabled) $('#btnRec').click(); }
@@ -1440,7 +1587,7 @@ function showXion(st) {
 }
 if (window.desktop?.onXion) {
   window.desktop.onXion(ev => {
-    if (ev.type === 'button') { $('#pedalState').textContent = `Botão ${ev.button} da câmara`; camAction(ev.button === 'A' ? settings.xionA : settings.xionB); }
+    if (ev.type === 'change') xionChange(ev);
     else showXion(ev);
   });
   window.desktop.xionStatus().then(showXion).catch(() => {});
@@ -1474,8 +1621,9 @@ async function migrateOld() {
   if (FS && !localStorage.getItem('dv-settings')) { // definições da versão anterior
     try { const old = await window.desktop.migratedSettings(); if (old) { settings = {...defaults, ...JSON.parse(old)}; saveSettings(); } } catch {}
   }
-  settings.img = {...IMG_DEFAULTS, ...(settings.img || {})}; settings.xionA ||= 'photo'; settings.xionB ||= 'record';
-  try { await DB.open(); }
+  settings.img = {...IMG_DEFAULTS, ...(settings.img || {})}; settings.xionKeys = {...XION_DEFAULT_KEYS, ...(settings.xionKeys || {})};
+  await scriptsLoaded;
+  try { await DB.open(); await loadTemplates(); }
   catch (e) { alert('Não foi possível abrir a pasta dos exames:\n' + e.message + '\n\nVerifique a ligação à pasta (ex.: rede) em Definições.'); }
   $('#oto').checked = settings.oto; $('#stage').classList.toggle('oto', settings.oto);
   renderOrg(); await loadPatients(); await loadSessions(); updateButtons();
@@ -1490,5 +1638,9 @@ async function migrateOld() {
 </script>
 <script src="voice.js"></script>
 <script src="strobe.js"></script>
+<script src="fees.js"></script>
+<script src="templates.js"></script>
+<script src="signoff.js"></script>
+<script>scriptsReady();</script>
 </body>
 </html>

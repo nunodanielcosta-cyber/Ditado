@@ -94,6 +94,7 @@ ipcMain.handle('store:moveUnique', (_e, fromRel, parentRel, base) => {
   try { fs.renameSync(from, path.join(parent, name)); return name; }
   catch { return path.basename(from); } // pasta em uso (ex.: vídeo aberto): mantém o nome antigo
 });
+ipcMain.handle('store:readJSON', (_e, rel) => readJSON(inRoot(rel)));
 ipcMain.handle('store:writeJSON', (_e, rel, obj) => writeAtomic(inRoot(rel), JSON.stringify(obj, null, 2)));
 ipcMain.handle('store:writeFile', (_e, rel, bytes) => writeAtomic(inRoot(rel), Buffer.from(bytes)));
 ipcMain.handle('store:remove', (_e, rel) => {

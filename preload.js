@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('desktop', {
     scan: call('store:scan'),
     mkUnique: call('store:mkUnique'),
     moveUnique: call('store:moveUnique'),
+    readJSON: call('store:readJSON'),
     writeJSON: call('store:writeJSON'),
     writeFile: call('store:writeFile'),
     remove: call('store:remove'),

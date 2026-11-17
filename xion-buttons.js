@@ -5,7 +5,8 @@
 //   IOCTL 0x88272008 → ler registo   (entrada/saída 4 bytes: [reg lo, reg hi, valor, 0])
 //   IOCTL 0x8827200c → escrever registo (entrada 4 bytes: [reg lo, reg hi, valor, 0])
 // Tal como o DiVAS: no arranque escreve reg2 = 0xFF e limpa os bits 0–1 do reg3 (linhas dos botões como entradas);
-// depois lê o registo 1 periodicamente. Bit 0x02 = botão A, bit 0x01 = botão B (0 = premido).
+// depois lê os registos 0–3 periodicamente e comunica qualquer mudança. Por omissão, no registo 1: bit 0x02 = fotografia,
+// bit 0x01 = gravar (0 = premido); a correspondência real de cada botão pode ser "ensinada" na app (Definições).
 //
 // Para não precisar de módulos nativos, a leitura é feita por um pequeno processo PowerShell (incluído no Windows)
 // que usa as funções do Windows (CreateFile / DeviceIoControl) e escreve as alterações no stdout.
@@ -59,17 +60,21 @@ while ($true) {
   $r3 = [XionCtl]::Read(3)
   if ($r3 -ge 0) { [void][XionCtl]::Write(3, ($r3 -band 0xFC)) }
   Emit ("INIT r0=" + [XionCtl]::Read(0) + " r2=" + [XionCtl]::Read(2) + " r3=" + $r3)
-  $prev = -2; $fails = 0
+  $prev = @(-2, -2, -2, -2); $fails = 0
   while ($true) {
-    $v = [XionCtl]::Read(1)
-    if ($v -lt 0) {
+    $bad = $false
+    for ($r = 0; $r -lt 4; $r++) {
+      $v = [XionCtl]::Read($r)
+      if ($v -lt 0) { $bad = $true; break }
+      if ($v -ne $prev[$r]) { Emit ("R " + $r + " " + $v); $prev[$r] = $v }
+    }
+    if ($bad) {
       $fails++
       if ($fails -gt 25) { Emit "LOST"; [XionCtl]::Close(); break }
       Start-Sleep -Milliseconds 200; continue
     }
     $fails = 0
-    if ($v -ne $prev) { Emit ("R1 " + $v); $prev = $v }
-    Start-Sleep -Milliseconds 30
+    Start-Sleep -Milliseconds 25
   }
   Start-Sleep -Seconds 2
 }
@@ -77,9 +82,9 @@ while ($true) {
 
 class XionButtons {
   constructor(onEvent) {
-    this.onEvent = onEvent; // ({type:'button', button:'A'|'B'} | {type:'status', ...})
+    this.onEvent = onEvent; // ({type:'change', reg, prev, val} | {type:'status', ...})
     this.proc = null; this.log = []; this.status = 'parado'; this.ident = '';
-    this.prev = null; this.stable = {}; this.toggles = {A: [], B: []};
+    this.regs = {}; this.toggles = {}; this.noisy = {};
   }
   note(s) { this.log.push(`${new Date().toLocaleTimeString('pt-PT')}  ${s}`); if (this.log.length > 200) this.log.shift(); }
   start() {
@@ -103,30 +108,28 @@ class XionButtons {
   setStatus(status, detail = '') { this.status = status; this.detail = detail; this.onEvent({type: 'status', status, detail, ident: this.ident}); }
   line(l) {
     if (!l) return;
-    if (!l.startsWith('R1 ')) this.note(l);
+    if (!l.startsWith('R ')) this.note(l);
     if (l.startsWith('ERROR')) return this.setStatus('erro', l.slice(6));
     if (l === 'NODEV') { if (this.status !== 'sem câmara') this.setStatus('sem câmara'); return; }
-    if (l === 'LOST') { this.prev = null; return this.setStatus('sem câmara'); }
-    if (l.startsWith('OPEN ')) { this.ident = l.slice(5); this.prev = null; return this.setStatus('ligado', this.ident); }
-    if (l.startsWith('R1 ')) {
-      const v = parseInt(l.slice(3), 10);
-      this.note('registo 1 = 0x' + v.toString(16).padStart(2, '0'));
-      if (this.prev !== null) {
-        for (const [bit, name] of [[0x02, 'A'], [0x01, 'B']]) {
-          const was = !(this.prev & bit), now = !(v & bit);
-          if (now && !was) this.press(name);
-        }
+    if (l === 'LOST') { this.regs = {}; return this.setStatus('sem câmara'); }
+    if (l.startsWith('OPEN ')) { this.ident = l.slice(5); this.regs = {}; return this.setStatus('ligado', this.ident); }
+    if (l.startsWith('R ')) {
+      const [, r, val] = l.split(' '), reg = +r, v = +val, prev = this.regs[reg];
+      this.regs[reg] = v;
+      if (prev === undefined) { this.note(`registo ${reg} = 0x${v.toString(16).padStart(2, '0')} (inicial)`); return; }
+      // ignorar bits "instáveis" (que mudam sozinhos muitas vezes por segundo, ex.: estado interno do chip)
+      const t = Date.now();
+      let diff = prev ^ v;
+      for (let bit = 1; bit < 256; bit <<= 1) if (diff & bit) {
+        const k = reg + ':' + bit, list = this.toggles[k] ||= [];
+        list.push(t); while (list.length && t - list[0] > 2000) list.shift();
+        if (list.length > 8 && !this.noisy[k]) { this.noisy[k] = true; this.note(`registo ${reg} bit 0x${bit.toString(16)} instável — ignorado`); }
+        if (this.noisy[k]) diff &= ~bit;
       }
-      this.prev = v;
+      if (!diff) return;
+      this.note(`registo ${reg}: 0x${prev.toString(16).padStart(2, '0')} → 0x${v.toString(16).padStart(2, '0')} (bits 0x${diff.toString(16)})`);
+      this.onEvent({type: 'change', reg, prev, val: v, diff});
     }
-  }
-  press(name) {
-    // proteção contra uma linha "instável" (a mudar sozinha muitas vezes por segundo)
-    const t = Date.now(), list = this.toggles[name];
-    list.push(t); while (list.length && t - list[0] > 2000) list.shift();
-    if (list.length > 6) { this.note(`botão ${name} ignorado (sinal instável)`); return; }
-    this.note(`botão ${name} premido`);
-    this.onEvent({type: 'button', button: name});
   }
 }
 module.exports = { XionButtons };

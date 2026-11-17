@@ -300,7 +300,7 @@ async function strobeSaveImage() {
 async function strobeSaveVideo() {
   const s = SB.res; if (!s) return;
   const c = $('#sAnim'), st = c.captureStream(30);
-  const mime = ['video/webm;codecs=vp9', 'video/webm'].find(t => MediaRecorder.isTypeSupported(t));
+  const mime = ['video/mp4;codecs=avc1', 'video/webm;codecs=vp9', 'video/webm'].find(t => MediaRecorder.isTypeSupported(t));
   const rec = new MediaRecorder(st, {...(mime ? {mimeType: mime} : {}), videoBitsPerSecond: 5e6}), chunks = [];
   rec.ondataavailable = e => e.data.size && chunks.push(e.data);
   const secs = Math.max(4, Math.min(12, 4 / +$('#sSpeed').value));

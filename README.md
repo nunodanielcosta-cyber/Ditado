@@ -99,3 +99,18 @@ Painel **Voz**: F0 em tempo real (algoritmo YIN), intensidade (dB relativos; aju
 3. Qualidade da reconstrução = coerência da ordenação × variação da abertura entre fases (imagens desfocadas → "fraca").
 Testado com vídeo sintético entrelaçado (F0 187 Hz): correlação 0,99 com o ciclo real; com imagens desfocadas
 (exposição de 20 ms) ou F0 múltiplo de 50 Hz a ferramenta indica qualidade fraca. Uso experimental, não diagnóstico.
+
+### v1.9
+
+- **Vídeos em MP4 (H.264)**; com som, o áudio fica em Opus. Os clips internos da estroboscopia continuam em WebM.
+- **Modelos de relatório editáveis** (Definições → Editar modelos de relatório): título, técnica, conclusão normal,
+  texto livre normal, campos (texto normal e achados frequentes) e novos tipos de exame. Ficam em
+  `<pasta dos exames>\_config\modelos.json`, partilhados pelos postos que usam a mesma pasta. Código: `templates.js`.
+- **Finalizar e assinar** (`signoff.js`): número ORL-AAAA-NNNN (contador em `_config\contador.json`, sem repetir números),
+  bloqueio, código de verificação (SHA-256), versões com motivo ("Reabrir"), registo na sessão, assinatura digitalizada
+  e PDF final guardado na pasta do exame. Não é assinatura digital qualificada.
+- **Videoendoscopia da deglutição (FEES)** (`fees.js`): avaliação pré-deglutição (Murray, sensibilidade, encerramento
+  velofaríngeo…), tabela de testes com bolo (IDDSI, escape, PAS 1–8, resíduos pela escala de Yale, reação), FOIS e dieta
+  recomendada, e conclusão gerada a partir dos parâmetros.
+- **Editar / apagar doentes e exames** (botões "Doente" e "Exame"); apagar com relatório finalizado exige confirmar o número.
+- **Botões da câmara**: leitura dos registos 0–3 e modo "Ensinar" para associar cada botão (Definições).
