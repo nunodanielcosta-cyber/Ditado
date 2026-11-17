@@ -299,6 +299,8 @@ dialog.wide{max-width:1100px}
     <div id="imgPanel" hidden>
       <h4><svg class="i"><use href="#i-sun"/></svg><span>Melhoria de imagem</span><button type="button" class="ghost icon" id="imgClose" title="Fechar">✕</button></h4>
       <label class="chk"><input type="checkbox" data-k="deint"> Corrigir riscas (desentrelaçar)</label>
+      <label class="chk"><input type="checkbox" data-k="aspect"> Corrigir proporção 4:3 (vídeo PAL/NTSC)</label>
+      <div class="sl"><span>Ruído</span><input type="range" data-k="denoise" min="0" max="0.85" step="0.05"><output></output></div>
       <div class="sl"><span>Brilho</span><input type="range" data-k="bri" min="-0.3" max="0.3" step="0.01"><output></output></div>
       <div class="sl"><span>Contraste</span><input type="range" data-k="con" min="0.5" max="1.8" step="0.01"><output></output></div>
       <div class="sl"><span>Saturação</span><input type="range" data-k="sat" min="0" max="2" step="0.01"><output></output></div>
@@ -686,6 +688,7 @@ function showMedia(m) {
   el.src = urlFor(m);
   if (m.kind === 'video') {
     el.controls = true; el.loop = $('#loop').checked;
+    if (!m.processed) el.onloadedmetadata = () => { if (outWidth(el.videoWidth, el.videoHeight) !== el.videoWidth) { el.style.aspectRatio = '4 / 3'; el.style.objectFit = 'fill'; } };
     el.onplay = el.onpause = () => $('#btnPlay use').setAttribute('href', el.paused ? '#i-play' : '#i-pause');
   }
   st.prepend(el); syncStage();
@@ -697,19 +700,30 @@ async function addMedia(blob, kind, extra = {}) {
 const targets = () => selected.size ? media.filter(m => selected.has(m.id)) : curMedia ? [curMedia] : [];
 
 // ---------- Melhoria de imagem (WebGL) ----------
-// Corrige as riscas do vídeo analógico entrelaçado (só onde há movimento) e ajusta brilho, contraste, saturação, nitidez e gama.
+// Corrige as riscas do vídeo analógico entrelaçado (só onde há movimento), reduz o ruído (compara imagens seguidas,
+// só onde não há movimento), corrige a proporção do vídeo PAL/NTSC para 4:3 e ajusta brilho, contraste, saturação, nitidez e gama.
 // O que se vê no ecrã é o que fica gravado (fotografias e vídeos).
-const IMG_DEFAULTS = {deint: true, bri: 0, con: 1, sat: 1, sharp: 0.3, gam: 1};
+const IMG_DEFAULTS = {deint: true, aspect: true, denoise: 0.4, bri: 0, con: 1, sat: 1, sharp: 0.3, gam: 1};
 settings.img = {...IMG_DEFAULTS, ...(settings.img || {})};
+// Vídeo analógico digitalizado (PAL 720×576, NTSC 720×480, ou 704 de largura) tem pontos retangulares:
+// para a imagem não ficar "apertada" na horizontal, mostra-se em 4:3 (768×576 / 640×480).
+const isAnalogSize = (w, h) => (w === 720 || w === 704) && (h === 576 || h === 480);
+const outWidth = (w, h, p = settings.img) => p.aspect !== false && isAnalogSize(w, h) ? Math.round(h * 4 / 3) : w;
 class ImageProc {
   constructor() {
     this.canvas = document.createElement('canvas');
     const gl = this.gl = this.canvas.getContext('webgl', {preserveDrawingBuffer: true, antialias: false});
     if (!gl) throw new Error('WebGL indisponível');
     const sh = (type, src) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
-    const pr = this.pr = gl.createProgram();
-    gl.attachShader(pr, sh(gl.VERTEX_SHADER, 'attribute vec2 p;varying vec2 uv;void main(){uv=vec2((p.x+1.)*.5,(1.-p.y)*.5);gl_Position=vec4(p,0.,1.);}'));
-    gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, `precision mediump float;
+    const prog = (flipY, frag, names) => {
+      const pr = gl.createProgram();
+      // flipY: desenhar no ecrã; sem flipY: desenhar numa textura intermédia (mantém a 1.ª linha da imagem no topo)
+      gl.attachShader(pr, sh(gl.VERTEX_SHADER, `attribute vec2 p;varying vec2 uv;void main(){uv=vec2((p.x+1.)*.5,${flipY ? '(1.-p.y)*.5' : '(p.y+1.)*.5'});gl_Position=vec4(p,0.,1.);}`));
+      gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, frag));
+      gl.linkProgram(pr); if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
+      return {pr, loc: gl.getAttribLocation(pr, 'p'), u: Object.fromEntries(names.map(n => [n, gl.getUniformLocation(pr, n)]))};
+    };
+    this.main = prog(true, `precision mediump float;
       uniform sampler2D t; uniform vec2 px; uniform float deint, bri, con, sat, sharp, gam; varying vec2 uv;
       vec3 T(vec2 o){ return texture2D(t, uv + o * px).rgb; }
       vec3 D(vec2 o){                       // pixel desentrelaçado (adaptativo: só onde há "pente")
@@ -728,23 +742,76 @@ class ImageProc {
         c = mix(vec3(dot(c, vec3(.299, .587, .114))), c, sat);
         c = pow(clamp(c, 0., 1.), vec3(1. / gam));
         gl_FragColor = vec4(c, 1.);
-      }`));
-    gl.linkProgram(pr); if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
-    gl.useProgram(pr);
+      }`, ['t', 'px', 'deint', 'bri', 'con', 'sat', 'sharp', 'gam']);
+    // Redução de ruído temporal: mistura com a imagem anterior já filtrada, só onde a imagem não mudou (sem rasto no movimento)
+    this.dn = prog(false, `precision mediump float;
+      uniform sampler2D cur, prev; uniform vec2 px; uniform float k; varying vec2 uv;
+      float L(vec3 c){ return dot(c, vec3(.299, .587, .114)); }
+      // diferença (atual − anterior) num ponto; para detetar movimento compara-se a média de uma pequena zona
+      // (o ruído anula-se na média, o movimento não). As linhas ±2 são do mesmo campo do vídeo entrelaçado.
+      float dif(vec2 o){ return L(texture2D(cur, uv + o * px).rgb) - L(texture2D(prev, uv + o * px).rgb); }
+      void main(){
+        vec3 c = texture2D(cur, uv).rgb, p = texture2D(prev, uv).rgb;
+        float s = 0.;
+        for (int i = -2; i <= 2; i++) { s += dif(vec2(float(i), 0.)); s += dif(vec2(float(i), 2.)); s += dif(vec2(float(i), -2.)); }
+        float d = abs(s / 15.);
+        float w = k * (1. - smoothstep(.02, .07, d));
+        gl_FragColor = vec4(mix(c, p, w), 1.);
+      }`, ['cur', 'prev', 'px', 'k']);
     gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-    const loc = gl.getAttribLocation(pr, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-    gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
-    for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.NEAREST], [gl.TEXTURE_MAG_FILTER, gl.NEAREST], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
-    this.u = Object.fromEntries(['px', 'deint', 'bri', 'con', 'sat', 'sharp', 'gam'].map(n => [n, gl.getUniformLocation(pr, n)]));
+    this.src = this.tex();
+    this.hist = [null, null]; this.fb = [null, null]; this.cur = 0; this.histOk = false; this.fbOk = true; this.hw = 0; this.hh = 0;
   }
-  render(src, w, h, p = settings.img) {
+  tex() {
+    const gl = this.gl, t = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    // LINEAR: necessário para a correção de proporção (na vertical as linhas continuam exatas, a altura não muda)
+    for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+    return t;
+  }
+  ensureHistory(w, h) {
+    const gl = this.gl;
+    if (this.hw === w && this.hh === h) return this.fbOk;
+    for (let i = 0; i < 2; i++) {
+      this.hist[i] ||= this.tex(); this.fb[i] ||= gl.createFramebuffer();
+      gl.bindTexture(gl.TEXTURE_2D, this.hist[i]);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.fb[i]);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.hist[i], 0);
+      if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) this.fbOk = false;
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    this.hw = w; this.hh = h; this.histOk = false;
+    return this.fbOk;
+  }
+  use(P) { const gl = this.gl; gl.useProgram(P.pr); gl.enableVertexAttribArray(P.loc); gl.vertexAttribPointer(P.loc, 2, gl.FLOAT, false, 0, 0); }
+  // live = true: vídeo ao vivo (usa o histórico para a redução de ruído); false: imagem isolada (ex.: frame de um vídeo gravado)
+  render(src, w, h, p = settings.img, live = false) {
     const gl = this.gl, c = this.canvas;
     if (!w || !h) return false;
-    if (c.width !== w || c.height !== h) { c.width = w; c.height = h; gl.viewport(0, 0, w, h); }
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.src);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
-    gl.uniform2f(this.u.px, 1 / w, 1 / h);
-    for (const k of ['deint', 'bri', 'con', 'sat', 'sharp', 'gam']) gl.uniform1f(this.u[k], k === 'deint' ? (p.deint ? 1 : 0) : +p[k]);
+    let input = this.src;
+    if (live && +p.denoise > 0.01 && this.ensureHistory(w, h)) {
+      const next = 1 - this.cur, prev = this.histOk ? this.hist[this.cur] : this.src;
+      this.use(this.dn);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.fb[next]); gl.viewport(0, 0, w, h);
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, prev);
+      gl.uniform1i(this.dn.u.cur, 0); gl.uniform1i(this.dn.u.prev, 1);
+      gl.uniform2f(this.dn.u.px, 1 / w, 1 / h); gl.uniform1f(this.dn.u.k, this.histOk ? Math.min(.85, +p.denoise) : 0);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      this.cur = next; this.histOk = true; input = this.hist[next];
+    } else this.histOk = false;
+    const ow = outWidth(w, h, p);
+    if (c.width !== ow || c.height !== h) { c.width = ow; c.height = h; }
+    gl.viewport(0, 0, ow, h);
+    this.use(this.main);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, input);
+    gl.uniform1i(this.main.u.t, 0);
+    gl.uniform2f(this.main.u.px, 1 / w, 1 / h);
+    for (const k of ['deint', 'bri', 'con', 'sat', 'sharp', 'gam']) gl.uniform1f(this.main.u[k], k === 'deint' ? (p.deint ? 1 : 0) : +p[k]);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     return true;
   }
@@ -800,7 +867,8 @@ async function startLive() {
       : '• Verifique se a câmara está ligada e selecionada na lista.'));
   }
   const tr = stream.getVideoTracks()[0]?.getSettings() || {};
-  $('#liveBadge').textContent = `AO VIVO${tr.width ? ` · ${tr.width}×${tr.height}` : ''}`;
+  const ow = tr.width && outWidth(tr.width, tr.height);
+  $('#liveBadge').textContent = `AO VIVO${tr.width ? ` · ${tr.width}×${tr.height}${ow !== tr.width ? ` → ${ow}×${tr.height} (4:3)` : ''}` : ''}`;
   await listDevices();
   const st = $('#stage'); st.querySelector('video,img,canvas')?.remove();
   const v = liveVideo = document.createElement('video'); v.muted = true; v.autoplay = true; v.playsInline = true; v.srcObject = stream;
@@ -810,11 +878,12 @@ async function startLive() {
     el = proc.canvas;
     const draw = () => {
       if (liveVideo !== v) return;
-      if (v.readyState >= 2) proc.render(v, v.videoWidth, v.videoHeight);
+      if (v.readyState >= 2) proc.render(v, v.videoWidth, v.videoHeight, settings.img, true);
       v.requestVideoFrameCallback ? v.requestVideoFrameCallback(draw) : requestAnimationFrame(draw);
     };
     v.play().catch(() => {}); draw();
   }
+  if (el === v) v.onloadedmetadata = () => { if (outWidth(v.videoWidth, v.videoHeight) !== v.videoWidth) { v.style.aspectRatio = '4 / 3'; v.style.objectFit = 'fill'; } };
   el.id = 'live';
   st.prepend(el); curMedia = null;
   document.querySelectorAll('.thumb.on').forEach(t => t.classList.remove('on'));
@@ -839,9 +908,10 @@ function beep(freq = 880, dur = .08) {
 }
 async function snapshot() {
   const v = $('#live'); if (!v || !curSes) return;
-  const c = document.createElement('canvas'); c.width = v.videoWidth || v.width; c.height = v.videoHeight || v.height;
+  const c = document.createElement('canvas');
+  c.width = v.videoWidth ? outWidth(v.videoWidth, v.videoHeight) : v.width; c.height = v.videoHeight || v.height;
   if (!c.width) return;
-  const x = c.getContext('2d'); x.drawImage(v, 0, 0);
+  const x = c.getContext('2d'); x.drawImage(v, 0, 0, c.width, c.height);
   if ($('#oto').checked) { // aplicar máscara circular à imagem guardada
     x.globalCompositeOperation = 'destination-in'; x.beginPath();
     x.ellipse(c.width * .49, c.height * .5, c.width * .365, c.height * .485, 0, 0, Math.PI * 2); x.fill();
@@ -916,10 +986,11 @@ async function grabFrame() {
   const v = vid();
   if (!v || !curSes) return alert('Abra primeiro um vídeo da sessão (clique na miniatura do vídeo) e pare no frame pretendido.');
   v.pause();
-  const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight;
   grabProc ||= makeProc();
   const src = !curMedia?.processed && grabProc && grabProc.render(v, v.videoWidth, v.videoHeight) ? grabProc.canvas : v;
-  c.getContext('2d').drawImage(src, 0, 0);
+  const c = document.createElement('canvas'); c.height = v.videoHeight;
+  c.width = src === v ? (curMedia?.processed ? v.videoWidth : outWidth(v.videoWidth, v.videoHeight)) : src.width;
+  c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
   const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', settings.jpeg));
   beep(); const f = $('#flash'); f.style.opacity = .5; setTimeout(() => f.style.opacity = 0, 80);
   const keep = curMedia;

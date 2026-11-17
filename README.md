@@ -76,3 +76,10 @@ escolhe-se a ação de cada botão e há um **Diagnóstico** com o registo das l
 
 Botão **Imagem**: correção das riscas do vídeo entrelaçado (desentrelaçamento adaptativo, só onde há movimento),
 brilho, contraste, saturação, nitidez e gama, em WebGL. O vídeo ao vivo, as fotografias e as gravações ficam com a melhoria.
+
+### Proporção 4:3 e redução de ruído (v1.7)
+
+- **Proporção:** o vídeo analógico digitalizado (PAL 720×576, NTSC 720×480) tem pontos retangulares; a app mostra e grava
+  em 4:3 (768×576 / 640×480), para a imagem não ficar "apertada" na horizontal. Desligável no painel **Imagem**.
+- **Ruído:** filtro temporal (compara cada imagem com a anterior) aplicado só onde não há movimento, para não deixar rasto.
+  Num teste com ruído moderado, o ruído desceu para metade (desvio-padrão 8,1 → 4,1).
