@@ -125,6 +125,29 @@ ipcMain.handle('cfg:setCapture', (_e, mode) => {
 });
 
 // Guardar o relatório (área de impressão da página) como PDF A4, na pasta da sessão
+// ---------- Espaço em disco (disco onde está a pasta dos exames) ----------
+ipcMain.handle('disk:status', () => {
+  const root = dataRoot(); fs.mkdirSync(root, { recursive: true });
+  const st = fs.statfsSync(root);
+  return { root, free: st.bavail * st.bsize, total: st.blocks * st.bsize };
+});
+// Tamanho da pasta dos exames (vídeos / imagens / outros) — pode demorar alguns segundos com muitos exames
+ipcMain.handle('disk:usage', async () => {
+  const out = { video: 0, image: 0, other: 0, nVideo: 0 };
+  const walk = async d => {
+    for (const e of await fs.promises.readdir(d, { withFileTypes: true }).catch(() => [])) {
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) { await walk(p); continue; }
+      const size = (await fs.promises.stat(p).catch(() => ({ size: 0 }))).size, ext = path.extname(e.name).toLowerCase();
+      if (['.mp4', '.webm', '.mov', '.m4v', '.ogv'].includes(ext)) { out.video += size; out.nVideo++; }
+      else if (['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.gif'].includes(ext)) out.image += size;
+      else out.other += size;
+    }
+  };
+  await walk(dataRoot());
+  return out;
+});
+
 // ---------- Relatórios para enviar (pasta no ambiente de trabalho) ----------
 // Cada relatório finalizado é copiado para "EndORL - Relatórios para enviar" no ambiente de trabalho, com uma lista CSV.
 // A administrativa copia a pasta para a pen todas as semanas e depois, na app, "Já copiei — arquivar" passa os ficheiros

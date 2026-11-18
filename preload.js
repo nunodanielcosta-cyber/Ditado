@@ -3,6 +3,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 const call = ch => (...a) => ipcRenderer.invoke(ch, ...a);
 contextBridge.exposeInMainWorld('desktop', {
   savePDF: call('save-pdf'),
+  diskStatus: call('disk:status'),
+  diskUsage: call('disk:usage'),
   outStatus: call('out:status'),
   outOpen: call('out:open'),
   outArchive: call('out:archive'),

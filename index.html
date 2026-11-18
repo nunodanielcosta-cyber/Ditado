@@ -50,6 +50,8 @@ header button:hover:not(:disabled){background:#15303b;color:#fff;border-color:tr
 header button.hl{border-color:#2a5563}
 header .n{background:#2a5563;color:#fff;border-radius:20px;padding:0 7px;font-size:11.5px;margin-left:2px}
 header #btnOut.has .n{background:#e0891e}
+header #btnDisk.warn{color:#ffb84d}
+header #btnDisk.crit{color:#ff6b6b;font-weight:700}
 
 main{display:grid;grid-template-columns:310px 1fr;gap:14px;padding:14px;height:calc(100vh - 56px)}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);display:flex;flex-direction:column;min-height:0;box-shadow:var(--shadow)}
@@ -291,6 +293,7 @@ dialog.wide{max-width:1100px}
   <div class="brand"><svg><use href="#logo"/></svg><b>End<span>ORL</span></b></div>
   <span class="org" id="who"></span>
   <span class="sp"></span>
+  <button id="btnDisk" hidden title="Espaço livre no disco dos exames"><svg class="i"><use href="#i-db"/></svg><span id="diskTxt"></span></button>
   <button id="btnOut" hidden title="Relatórios finalizados à espera de serem enviados para a informática"><svg class="i"><use href="#i-upload"/></svg>Para enviar <span class="n" id="outCount">0</span></button>
   <button id="btnQuick" class="hl" title="Sessão rápida sem doente identificado"><svg class="i"><use href="#i-zap"/></svg>Início rápido</button>
   <button id="btnBackup" title="Guardar todos os dados num ficheiro"><svg class="i"><use href="#i-db"/></svg>Cópia de segurança</button>
@@ -560,6 +563,11 @@ dialog.wide{max-width:1100px}
     <li>Clique em <b>Abrir pasta</b> e copie <b>todos</b> os ficheiros (PDF e lista) para a pen da informática.</li>
     <li>Confirme que ficaram copiados e clique em <b>Já copiei — arquivar</b>.</li></ol>
   <div class="row" style="justify-content:flex-end;margin-top:14px"><button value="cancel">Fechar</button><button type="button" id="outOpen">Abrir pasta</button><button type="button" id="outArch" class="pri">Já copiei — arquivar</button></div>
+</form></dialog>
+
+<dialog id="diskDlg"><form method="dialog">
+  <h3>Espaço em disco</h3><div id="diskInfo" style="font-size:13.5px;line-height:1.6"></div>
+  <div class="row" style="justify-content:flex-end;margin-top:14px"><button type="button" id="diskOpen">Abrir pasta dos exames</button><button value="cancel" class="pri">Fechar</button></div>
 </form></dialog>
 
 <div id="printArea"></div>
@@ -871,6 +879,7 @@ function showMedia(m) {
 async function addMedia(blob, kind, extra = {}) {
   const m = {id: uid(), sessionId: curSes.id, created: Date.now(), kind, type: blob.type, blob, ...extra};
   await DB.put('media', m); await loadMedia();
+  if (typeof diskCheck === 'function') diskCheck();
 }
 const targets = () => selected.size ? media.filter(m => selected.has(m.id)) : curMedia ? [curMedia] : [];
 
@@ -1099,6 +1108,7 @@ async function snapshot() {
 }
 function startRec() {
   if (!stream || !curSes) return;
+  if (diskLevel === 'crit') return alert(`Espaço em disco quase esgotado (${fmtGB(diskFree)} livres).\nNão é possível gravar vídeo. Liberte espaço (ex.: arquivar vídeos antigos num disco externo) e tente de novo.\nAs fotografias continuam a funcionar.`);
   // MP4 (H.264) abre em qualquer programa; com som, o áudio fica em Opus (o AAC não está disponível). Recurso: WebM.
   const withAudio = stream.getAudioTracks().length > 0;
   const mime = [withAudio ? 'video/mp4;codecs=avc1,opus' : 'video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(t => MediaRecorder.isTypeSupported(t));
@@ -1653,6 +1663,7 @@ async function migrateOld() {
 <script src="fees.js"></script>
 <script src="templates.js"></script>
 <script src="signoff.js"></script>
+<script src="disk.js"></script>
 <script>scriptsReady();</script>
 </body>
 </html>

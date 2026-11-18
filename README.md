@@ -122,3 +122,10 @@ Para o PC sem rede: cada relatório **finalizado** é copiado para a pasta do am
 `lista_para_enviar.csv` (abre no Excel) e um `LEIA-ME.txt` com as instruções. Botão **"Para enviar (N)"** no topo:
 abrir a pasta e, depois de copiar para a pen, **"Já copiei — arquivar"** (passa os ficheiros para `Enviados\<data>`).
 Cada relatório/versão só é copiado uma vez; as versões corrigidas indicam qual substituem.
+
+### Aviso de espaço em disco (v1.11) — `disk.js`
+
+Indicador no topo com o espaço livre no disco da pasta dos exames (e minutos de vídeo que ainda cabem).
+Abaixo de 10 GB: aviso; abaixo de 2 GB: não deixa começar gravações (fotografias continuam);
+abaixo de 1 GB durante uma gravação: para-a e guarda o que foi gravado. Clicar no indicador mostra o espaço
+ocupado pelos exames (vídeos, imagens, relatórios).

@@ -1,7 +1,7 @@
 {
   "name": "endorl",
   "productName": "EndORL",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "description": "Documentação clínica em vídeo e fotografia",
   "main": "main.js",
   "author": "EndORL",
@@ -18,7 +18,7 @@
   "build": {
     "appId": "pt.endorl.app",
     "productName": "EndORL",
-    "files": ["index.html", "main.js", "preload.js", "xion-buttons.js", "voice.js", "strobe.js", "fees.js", "templates.js", "signoff.js", "package.json", "logo.png", "build/icon.png"],
+    "files": ["index.html", "main.js", "preload.js", "xion-buttons.js", "voice.js", "strobe.js", "fees.js", "templates.js", "signoff.js", "disk.js", "package.json", "logo.png", "build/icon.png"],
     "directories": { "output": "dist" },
     "win": { "signAndEditExecutable": false, "icon": "build/icon.png" },
     "portable": { "artifactName": "EndORL-${version}-portatil.exe" },
