@@ -114,3 +114,11 @@ Testado com vídeo sintético entrelaçado (F0 187 Hz): correlação 0,99 com o 
   recomendada, e conclusão gerada a partir dos parâmetros.
 - **Editar / apagar doentes e exames** (botões "Doente" e "Exame"); apagar com relatório finalizado exige confirmar o número.
 - **Botões da câmara**: leitura dos registos 0–3 e modo "Ensinar" para associar cada botão (Definições).
+
+### Relatórios para enviar (v1.10)
+
+Para o PC sem rede: cada relatório **finalizado** é copiado para a pasta do ambiente de trabalho
+**"EndORL - Relatórios para enviar"** (nome `processo_apelido_nome_data_ORL-AAAA-NNNN[-vN].pdf`), com a lista
+`lista_para_enviar.csv` (abre no Excel) e um `LEIA-ME.txt` com as instruções. Botão **"Para enviar (N)"** no topo:
+abrir a pasta e, depois de copiar para a pen, **"Já copiei — arquivar"** (passa os ficheiros para `Enviados\<data>`).
+Cada relatório/versão só é copiado uma vez; as versões corrigidas indicam qual substituem.

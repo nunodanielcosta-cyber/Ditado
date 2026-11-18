@@ -3,6 +3,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 const call = ch => (...a) => ipcRenderer.invoke(ch, ...a);
 contextBridge.exposeInMainWorld('desktop', {
   savePDF: call('save-pdf'),
+  outStatus: call('out:status'),
+  outOpen: call('out:open'),
+  outArchive: call('out:archive'),
   migratedSettings: call('cfg:migratedSettings'),
   captureMode: call('cfg:capture'),
   setCaptureMode: call('cfg:setCapture'),

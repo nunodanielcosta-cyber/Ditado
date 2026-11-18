@@ -48,6 +48,8 @@ header .sp{flex:1}
 header button{background:transparent;border-color:transparent;color:var(--chrome-ink)}
 header button:hover:not(:disabled){background:#15303b;color:#fff;border-color:transparent}
 header button.hl{border-color:#2a5563}
+header .n{background:#2a5563;color:#fff;border-radius:20px;padding:0 7px;font-size:11.5px;margin-left:2px}
+header #btnOut.has .n{background:#e0891e}
 
 main{display:grid;grid-template-columns:310px 1fr;gap:14px;padding:14px;height:calc(100vh - 56px)}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);display:flex;flex-direction:column;min-height:0;box-shadow:var(--shadow)}
@@ -289,6 +291,7 @@ dialog.wide{max-width:1100px}
   <div class="brand"><svg><use href="#logo"/></svg><b>End<span>ORL</span></b></div>
   <span class="org" id="who"></span>
   <span class="sp"></span>
+  <button id="btnOut" hidden title="Relatórios finalizados à espera de serem enviados para a informática"><svg class="i"><use href="#i-upload"/></svg>Para enviar <span class="n" id="outCount">0</span></button>
   <button id="btnQuick" class="hl" title="Sessão rápida sem doente identificado"><svg class="i"><use href="#i-zap"/></svg>Início rápido</button>
   <button id="btnBackup" title="Guardar todos os dados num ficheiro"><svg class="i"><use href="#i-db"/></svg>Cópia de segurança</button>
   <button id="btnRestore" title="Restaurar a partir de uma cópia de segurança"><svg class="i"><use href="#i-upload"/></svg>Restaurar</button>
@@ -548,6 +551,15 @@ dialog.wide{max-width:1100px}
 <dialog id="askDlg"><form method="dialog">
   <p id="askMsg" style="white-space:pre-line;margin:0 0 10px"></p><input id="askInput" autocomplete="off">
   <div class="row" style="margin-top:14px;justify-content:flex-end"><button value="cancel" formnovalidate>Cancelar</button><button class="pri" value="ok">OK</button></div>
+</form></dialog>
+
+<dialog id="outDlg"><form method="dialog">
+  <h3>Relatórios para enviar à informática</h3>
+  <div id="outInfo" style="font-size:13.5px;line-height:1.55"></div>
+  <ol style="font-size:13px;line-height:1.6;padding-left:20px;margin:12px 0">
+    <li>Clique em <b>Abrir pasta</b> e copie <b>todos</b> os ficheiros (PDF e lista) para a pen da informática.</li>
+    <li>Confirme que ficaram copiados e clique em <b>Já copiei — arquivar</b>.</li></ol>
+  <div class="row" style="justify-content:flex-end;margin-top:14px"><button value="cancel">Fechar</button><button type="button" id="outOpen">Abrir pasta</button><button type="button" id="outArch" class="pri">Já copiei — arquivar</button></div>
 </form></dialog>
 
 <div id="printArea"></div>
@@ -1400,7 +1412,7 @@ $('#repPrint').onclick = async () => { await saveReport(); await buildPrint(); a
 $('#repPdf').onclick = async () => {
   await saveReport(); await buildPrint();
   if (window.desktop?.savePDF) {
-    let f; try { await printing(async () => { f = await window.desktop.savePDF(reportFileName(), DB.sessionRel?.(curSes)); }); alert('PDF guardado em:\n' + f); }
+    let f; try { await printing(async () => { f = await window.desktop.savePDF(reportFileName(), DB.sessionRel?.(curSes), outMeta()); }); alert('PDF guardado em:\n' + f + (isFinal(rep) ? '\n\nUma cópia foi colocada na pasta "EndORL - Relatórios para enviar" (ambiente de trabalho).' : '')); outRefresh(); }
     catch (err) { alert('Não foi possível guardar o PDF: ' + err.message); }
   } else {
     alert('No browser, escolha "Guardar como PDF" na janela de impressão que vai abrir.');

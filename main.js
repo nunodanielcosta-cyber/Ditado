@@ -125,7 +125,59 @@ ipcMain.handle('cfg:setCapture', (_e, mode) => {
 });
 
 // Guardar o relatório (área de impressão da página) como PDF A4, na pasta da sessão
-ipcMain.handle('save-pdf', async (event, name, sessionRel) => {
+// ---------- Relatórios para enviar (pasta no ambiente de trabalho) ----------
+// Cada relatório finalizado é copiado para "EndORL - Relatórios para enviar" no ambiente de trabalho, com uma lista CSV.
+// A administrativa copia a pasta para a pen todas as semanas e depois, na app, "Já copiei — arquivar" passa os ficheiros
+// para "Enviados\<data>". Um mesmo relatório/versão nunca é copiado duas vezes.
+const OUT_NAME = 'EndORL - Relatórios para enviar';
+const outDir = () => { const d = path.join(app.getPath('desktop'), OUT_NAME); fs.mkdirSync(d, { recursive: true }); return d; };
+const CSV_NAME = 'lista_para_enviar.csv';
+const csvCell = v => { const s = String(v ?? ''); return /[;"\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+const LEIAME = `Relatórios finalizados no EndORL, prontos a enviar para a informática.
+
+TODAS AS SEMANAS:
+1. Copie TODOS os ficheiros desta pasta (os PDF e o ficheiro ${CSV_NAME}) para a pen ou disco indicado pela informática.
+2. Depois de confirmar que ficaram copiados, abra o EndORL e clique em "Para enviar" (no topo) e depois em "Já copiei — arquivar".
+   Os ficheiros passam para a subpasta "Enviados" (com a data de hoje) e esta pasta fica pronta para a semana seguinte.
+
+NOTAS:
+- O ficheiro ${CSV_NAME} abre no Excel: tem o n.º de processo, o nome do doente, a data e o n.º de cada relatório.
+- Um relatório com "-v2" (ou v3…) no nome é uma versão corrigida: SUBSTITUI a versão anterior (ver a coluna "Observação").
+- Não altere nem apague os PDF: os originais estão guardados nas pastas dos exames do EndORL.
+- São dados de saúde: use apenas a pen/disco encriptado fornecido pela informática.
+`;
+function outAlreadyCopied(name) {
+  const d = outDir();
+  if (fs.existsSync(path.join(d, name))) return true;
+  const sent = path.join(d, 'Enviados');
+  return fs.existsSync(sent) && fs.readdirSync(sent).some(w => fs.existsSync(path.join(sent, w, name)));
+}
+function outAdd(pdfPath, m) {
+  const d = outDir();
+  const name = cleanName(`${m.pid}_${m.surname}_${m.given}_${m.examDate}_${m.number}${m.version > 1 ? '-v' + m.version : ''}`).replace(/\s+/g, '_') + '.pdf';
+  if (outAlreadyCopied(name)) return null;
+  fs.copyFileSync(pdfPath, path.join(d, name));
+  const csv = path.join(d, CSV_NAME);
+  if (!fs.existsSync(csv)) fs.writeFileSync(csv, '\ufeff' + ['Data de finalização', 'N.º processo', 'Doente', 'Data do exame', 'Exame', 'N.º relatório', 'Versão', 'Observação', 'Ficheiro'].join(';') + '\r\n');
+  fs.appendFileSync(csv, [m.signedAt, m.pid, `${m.surname}, ${m.given}`, m.examDate, m.exam, m.number, m.version, m.version > 1 ? `Substitui a versão ${m.version - 1}${m.reason ? ' (' + m.reason + ')' : ''}` : '', name].map(csvCell).join(';') + '\r\n');
+  if (!fs.existsSync(path.join(d, 'LEIA-ME.txt'))) fs.writeFileSync(path.join(d, 'LEIA-ME.txt'), LEIAME.replace(/\n/g, '\r\n'));
+  return name;
+}
+const outPending = () => fs.readdirSync(outDir()).filter(f => f.toLowerCase().endsWith('.pdf'));
+ipcMain.handle('out:status', () => ({ dir: outDir(), files: outPending() }));
+ipcMain.handle('out:open', () => shell.openPath(outDir()));
+ipcMain.handle('out:archive', () => {
+  const d = outDir(), files = outPending();
+  if (!files.length) return 0;
+  const two = n => String(n).padStart(2, '0'), t = new Date();
+  let dest = path.join(d, 'Enviados', `${t.getFullYear()}-${two(t.getMonth() + 1)}-${two(t.getDate())}`), k = 2;
+  while (fs.existsSync(dest)) dest = path.join(d, 'Enviados', `${t.getFullYear()}-${two(t.getMonth() + 1)}-${two(t.getDate())} (${k++})`);
+  fs.mkdirSync(dest, { recursive: true });
+  for (const f of [...files, CSV_NAME]) if (fs.existsSync(path.join(d, f))) fs.renameSync(path.join(d, f), path.join(dest, f));
+  return files.length;
+});
+
+ipcMain.handle('save-pdf', async (event, name, sessionRel, outMeta) => {
   const dir = sessionRel ? inRoot(sessionRel) : docDir('Relatorios');
   const safe = cleanName(name || 'Relatorio');
   let target = path.join(dir, safe + '.pdf'), n = 2;
@@ -138,6 +190,8 @@ ipcMain.handle('save-pdf', async (event, name, sessionRel) => {
   finally { w.setBackgroundColor('#12161b'); }
   fs.writeFileSync(target, pdf);
   shell.openPath(target);
+  // relatório finalizado: copiar para a pasta "para enviar" do ambiente de trabalho (uma só vez por versão)
+  if (outMeta) { try { outAdd(target, outMeta); } catch (e) { console.error('Pasta para enviar:', e); } }
   return target;
 });
 
@@ -248,6 +302,7 @@ app.whenReady().then(async () => {
     { label: 'Ficheiro', submenu: [
       { label: 'Abrir pasta dos exames', click: () => { fs.mkdirSync(dataRoot(), { recursive: true }); shell.openPath(dataRoot()); } },
       { label: 'Abrir pasta de exportações', click: () => shell.openPath(exportDir()) },
+      { label: 'Abrir pasta "Relatórios para enviar"', click: () => shell.openPath(outDir()) },
       { type: 'separator' },
       { label: 'Sair', role: 'quit' },
     ] },

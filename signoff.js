@@ -96,3 +96,33 @@ $('#sigFile').onchange = async e => {
   settings.signatures[$('#sigWho').value] = c.toDataURL('image/png'); saveSettings(); sigShow(); e.target.value = '';
 };
 $('#sigDel').onclick = () => { delete settings.signatures[$('#sigWho').value]; saveSettings(); sigShow(); };
+
+// ---------- Relatórios para enviar (pasta "EndORL - Relatórios para enviar" no ambiente de trabalho) ----------
+function outMeta() {
+  if (!isFinal(rep)) return null;
+  return {pid: curPat.pid || 'sem-processo', surname: curPat.surname, given: curPat.given, examDate: rep.date, exam: rep.exam,
+    number: rep.number, version: rep.version || 1, reason: rep.reason || '', signedAt: fmtDT(rep.signedAt)};
+}
+async function outRefresh() {
+  if (!window.desktop?.outStatus) return;
+  const st = await window.desktop.outStatus();
+  $('#btnOut').hidden = false; $('#outCount').textContent = st.files.length; $('#btnOut').classList.toggle('has', st.files.length > 0);
+  return st;
+}
+$('#btnOut').onclick = async () => {
+  const st = await outRefresh();
+  const drafts = (await DB.all('sessions')).filter(s => s.report && s.report.status !== 'final');
+  $('#outInfo').innerHTML = (st.files.length ? `<b>${st.files.length}</b> relatório(s) finalizado(s) à espera de envio:<ul style="max-height:180px;overflow:auto;margin:6px 0;padding-left:18px;font-size:12px">${st.files.map(f => `<li>${esc(f)}</li>`).join('')}</ul>`
+    : 'Não há relatórios à espera de envio.') +
+    (drafts.length ? `<div class="banner warn" style="padding:6px 10px;border-radius:8px;margin-top:6px">⚠ Há <b>${drafts.length}</b> relatório(s) em rascunho (não finalizados) — só os finalizados são enviados.</div>` : '');
+  $('#outArch').disabled = !st.files.length;
+  $('#outDlg').showModal();
+};
+$('#outOpen').onclick = () => window.desktop.outOpen();
+$('#outArch').onclick = async () => {
+  if (!confirm('Confirma que JÁ COPIOU todos os ficheiros da pasta para a pen?\n\nOs ficheiros vão passar para a subpasta "Enviados" e deixam de aparecer como "para enviar".')) return;
+  const n = await window.desktop.outArchive();
+  await outRefresh(); $('#outDlg').close();
+  alert(`${n} relatório(s) arquivado(s) como enviados.`);
+};
+scriptsLoaded.then(outRefresh);
